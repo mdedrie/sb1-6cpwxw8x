@@ -1,0 +1,105 @@
+import React, { useState } from 'react';
+import { FormField, Button } from '../../../../components/ui';
+import { ArrowRight, AlertCircle } from 'lucide-react';
+import { useEditorApi, useConfigurationsApi } from '../../../../services/api/hooks';
+import type { Step1FormData } from '../../../../types';
+
+interface BasicInfoStepProps {
+  data: Step1FormData;
+  onChange: (data: Step1FormData) => void;
+  onNext: (e: React.FormEvent) => void;
+  configId?: string;
+  isExistingConfig?: boolean;
+}
+
+export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
+  data,
+  onChange,
+  onNext,
+  configId,
+  isExistingConfig
+}) => {
+  const { isLoading, error } = useConfigurationsApi();
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const validateForm = () => {
+    const name = data.config_name.trim();
+    if (!name) return 'Le nom de la configuration est requis';
+    if (name.length < 3) return 'Le nom doit contenir au moins 3 caractères';
+    if (name.length > 100) return 'Le nom ne peut pas dépasser 100 caractères';
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationError(null);
+
+    const error = validateForm();
+    if (error) {
+      setValidationError(error);
+      return;
+    }
+    
+    onNext(e);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {(error || validationError) && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center text-red-700">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+          <p>{error || validationError}</p>
+        </div>
+      )}
+
+      <FormField
+        label="Nom de la configuration"
+        id="config_name"
+        placeholder="Ex: Configuration Standard A1"
+        value={data.config_name}
+        onChange={(e) => onChange({ ...data, config_name: e.target.value })}
+        className="transition-all duration-200 focus:ring-2"
+        required
+        error={validationError}
+      />
+      
+      <div className="flex items-center bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-all duration-200">
+        <input
+          type="checkbox"
+          id="is_catalog"
+          checked={data.is_catalog}
+          onChange={(e) => onChange({ ...data, is_catalog: e.target.checked })}
+          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+        />
+        <label htmlFor="is_catalog" className="ml-2 block text-sm text-gray-600">
+          Cataloguée ?
+        </label>
+        <div className="ml-auto text-xs text-gray-500">
+          Visible dans le catalogue public
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-4 mt-8">
+        <Button 
+          type="submit" 
+          className="flex items-center"
+          disabled={isLoading || isUpdating}
+          aria-label={isLoading || isUpdating ? 'Chargement...' : 'Suivant'}
+        >
+          {(isLoading || isUpdating) ? (
+            <>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+              {isExistingConfig ? 'Mise à jour...' : 'Chargement...'}
+            </>
+          ) : (
+            <>
+              Suivant
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+};
