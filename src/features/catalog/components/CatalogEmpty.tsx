@@ -1,11 +1,11 @@
-import React from 'react';
-import { Search, Button } from '../../../components/ui';
+import { Search } from 'lucide-react';
+import { Button } from '../../../components/ui';
 
 interface CatalogEmptyProps {
   onResetFilters: () => void;
 }
 
-export const CatalogEmpty: React.FC<CatalogEmptyProps> = ({ onResetFilters }) => {
+export function CatalogEmpty({ onResetFilters }: CatalogEmptyProps) {
   return (
     <div className="text-center py-12">
       <Search className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -20,4 +20,4 @@ export const CatalogEmpty: React.FC<CatalogEmptyProps> = ({ onResetFilters }) =>
       </Button>
     </div>
   );
-};
+}

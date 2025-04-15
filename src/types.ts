@@ -4,7 +4,7 @@ export interface StepMetadata {
     inner_heights: ParameterItem[];
     designs: ParameterItem[];
     doors: ParameterItem[];
-    2ways: ParameterItem[];
+    "2ways": ParameterItem[];
     knobs: ParameterItem[];
     finishes: ParameterItem[];
     foams: ParameterItem[];
@@ -46,7 +46,6 @@ export interface Edge {
   length?: number;
   coords: number[][];
   junctionType?: string;
-  isShared?: boolean;
   isShared?: boolean;
 }
 
@@ -113,6 +112,7 @@ export interface Configuration {
 export interface ParameterItem {
   ref: string;
   desc: string;
+  dim?: number;
 }
 
 export interface Step1FormData {

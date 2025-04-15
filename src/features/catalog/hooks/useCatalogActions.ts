@@ -7,12 +7,14 @@ interface UseCatalogActionsProps {
   onRefresh: () => void;
 }
 
-export function useCatalogActions({ configurations, setConfigurations, onRefresh }: UseCatalogActionsProps) {
+export function useCatalogActions({
+  onRefresh,
+}: UseCatalogActionsProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ id: string; name: string } | null>(null);
 
-  const handleDelete = useCallback(async (id: string, name: string) => {
+  const handleDeleteRequest = useCallback((id: string, name: string) => {
     setDeleteConfirmation({ id, name });
   }, []);
 
@@ -21,54 +23,48 @@ export function useCatalogActions({ configurations, setConfigurations, onRefresh
 
     try {
       setIsDeleting(true);
-      const response = await fetch(`https://icecoreapi-production.up.railway.app/api/configurations/${deleteConfirmation.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        `https://icecoreapi-production.up.railway.app/api/configurations/${deleteConfirmation.id}`,
+        { method: 'DELETE', headers: { 'Content-Type': 'application/json' } }
+      );
 
       if (!response.ok) {
-        throw new Error(`Erreur lors de la suppression (${response.status})`);
+        throw new Error(`Erreur lors de la suppression (code ${response.status})`);
       }
 
       onRefresh();
       setDeleteConfirmation(null);
-    } catch (err) {
-      console.error('Error deleting configuration:', err);
-      throw new Error(err instanceof Error ? err.message : 'Une erreur est survenue lors de la suppression');
+    } catch (error: unknown) {
+      console.error('Erreur lors de la suppression :', error);
+      throw new Error(error instanceof Error ? error.message : 'Erreur inconnue');
     } finally {
       setIsDeleting(false);
     }
   }, [deleteConfirmation, onRefresh]);
 
   const handleExport = useCallback(async (filteredConfigurations: Configuration[]) => {
+    let url: string | null = null;
+
     try {
       setIsExporting(true);
-      const data = filteredConfigurations.map(config => ({
-        id: config.id,
-        name: config.name,
-        description: config.description,
-        status: config.status,
-        is_catalog: config.is_catalog,
-        dimensions: config.dimensions,
-        created_at: config.created_at,
-        sell_price: config.sell_price,
+      const exportData = filteredConfigurations.map(({ id, name, description, status, is_catalog, dimensions, created_at, sell_price }) => ({
+        id, name, description, status, is_catalog, dimensions, created_at, sell_price
       }));
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = window.URL.createObjectURL(blob);
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      url = window.URL.createObjectURL(blob);
+
       const a = document.createElement('a');
       a.href = url;
       a.download = `configurations-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err) {
-      console.error('Error exporting configurations:', err);
-      throw new Error('Une erreur est survenue lors de l\'export');
+    } catch (error) {
+      console.error('Erreur lors de l’export :', error);
+      throw new Error('Erreur lors de l’export des configurations');
     } finally {
+      if (url) window.URL.revokeObjectURL(url);
       setIsExporting(false);
     }
   }, []);
@@ -77,9 +73,9 @@ export function useCatalogActions({ configurations, setConfigurations, onRefresh
     isDeleting,
     isExporting,
     deleteConfirmation,
-    handleDelete,
+    handleDelete: handleDeleteRequest,
     confirmDelete,
     handleExport,
-    setDeleteConfirmation
+    setDeleteConfirmation,
   };
 }

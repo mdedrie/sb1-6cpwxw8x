@@ -15,6 +15,7 @@ import {
 import { ColumnCard } from './ColumnCard';
 import type { Column } from '../../../../types';
 import { useColumnActions } from '../../hooks/useColumnActions';
+import { useToast } from '../../../../components/ui/use-toast';
 
 interface ColumnListProps {
   columns: Column[];
@@ -40,15 +41,13 @@ export const ColumnList: React.FC<ColumnListProps> = ({
     onColumnsChange,
     configId: null,
     metadata: null,
-    existingColumns: []
+    existingColumns: [],
   });
 
+  const { showToast } = useToast();
+
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
@@ -59,25 +58,27 @@ export const ColumnList: React.FC<ColumnListProps> = ({
     const oldIndex = columns.findIndex((c) => c.id === active.id);
     const newIndex = columns.findIndex((c) => c.id === over.id);
 
-    // Create a test array with the proposed change
+    if (oldIndex === -1 || newIndex === -1) return;
+
     const reordered = [...columns];
     const [moved] = reordered.splice(oldIndex, 1);
     reordered.splice(newIndex, 0, moved);
 
-    // Map positions
     const withNewPositions = reordered.map((col, idx) => ({
       ...col,
       position: idx + 1,
     }));
 
-    // Validate the moved column in its new position
     const error = validateColumnPosition(withNewPositions[newIndex], withNewPositions);
-    
+
     if (!error) {
       onColumnsChange(withNewPositions);
     } else {
-      // Optionally show error message to user
-      console.error(error);
+      showToast({
+        header: 'Position invalide',
+        description: error,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -88,16 +89,15 @@ export const ColumnList: React.FC<ColumnListProps> = ({
       onDragEnd={handleDragEnd}
     >
       <div className="relative overflow-x-auto pb-2">
-        <div
-          role="list"
-          className="flex gap-4 min-w-[1200px] md:min-w-full"
-        >
+        <div role="list" className="flex gap-4 min-w-[1200px] md:min-w-full">
           <SortableContext items={columns} strategy={horizontalListSortingStrategy}>
             {columns.map((column) => (
               <div
                 key={column.id}
                 role="listitem"
-                className="min-w-[240px] max-w-[240px] flex-shrink-0"
+                className={`min-w-[240px] max-w-[240px] flex-shrink-0 ${
+                  disabled ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 <ColumnCard
                   column={column}
@@ -111,7 +111,8 @@ export const ColumnList: React.FC<ColumnListProps> = ({
             ))}
           </SortableContext>
         </div>
-        {/* Optional gradient to hint scrollability */}
+
+        {/* Gradient de défilement visuel */}
         <div className="absolute top-0 right-0 h-full w-12 pointer-events-none bg-gradient-to-l from-white to-transparent z-10" />
       </div>
     </DndContext>

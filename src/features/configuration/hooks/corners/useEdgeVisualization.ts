@@ -1,14 +1,14 @@
-import { useRef } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
 
-// Add 'export' keyword to make EDGE_COLORS available for import
+// === Couleurs des arêtes ===
 export const EDGE_COLORS = {
-  left: 0x1f77b4,   // Blue
-  right: 0x2ca02c,  // Green
-  top: 0xff7f0e,    // Orange
-  bottom: 0xd62728, // Red
-  back: 0x9467bd,   // Purple
-  outline: 0x000000 // Black for edge highlighting
+  left: 0x1f77b4,
+  right: 0x2ca02c,
+  top: 0xff7f0e,
+  bottom: 0xd62728,
+  back: 0x9467bd,
+  outline: 0x000000
 } as const;
 
 export function useEdgeVisualization(scene: THREE.Scene | null) {
@@ -16,55 +16,62 @@ export function useEdgeVisualization(scene: THREE.Scene | null) {
   const permanentEdgesRef = useRef<THREE.Line[]>([]);
   const outlineEdgesRef = useRef<THREE.Line[]>([]);
 
-  const addPermanentEdge = (points: THREE.Vector3[], color: number) => {
-    if (!scene) return;
-
-    // Add the colored edge
-    const material = new THREE.LineBasicMaterial({
-      color,
-      linewidth: 2
-    });
-
+  const createLine = (points: THREE.Vector3[], color: number, linewidth = 2, opacity = 1, transparent = false) => {
+    const material = new THREE.LineBasicMaterial({ color, linewidth, transparent, opacity });
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const line = new THREE.Line(geometry, material);
-    scene.add(line);
-    permanentEdgesRef.current.push(line);
+    return new THREE.Line(geometry, material);
+  };
 
-    // Add black outline edge
-    const outlineMaterial = new THREE.LineBasicMaterial({
-      color: EDGE_COLORS.outline,
-      linewidth: 3,
-      transparent: true,
-      opacity: 0.3
-    });
+  // === Ajout d'une arête permanente avec son contour noir ===
+  const addPermanentEdge = useCallback((points: THREE.Vector3[], color: number) => {
+    if (!scene || points.length < 2) return;
 
-    const outlineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-    const outlineLine = new THREE.Line(outlineGeometry, outlineMaterial);
-    // Offset slightly to avoid z-fighting
+    const mainLine = createLine(points, color, 2);
+    scene.add(mainLine);
+    permanentEdgesRef.current.push(mainLine);
+
+    const outlineLine = createLine(points, EDGE_COLORS.outline, 3, 0.3, true);
     outlineLine.position.z += 0.001;
     scene.add(outlineLine);
     outlineEdgesRef.current.push(outlineLine);
-  };
+  }, [scene]);
 
-  const highlightEdge = (coords: number[][]) => {
-    if (!scene) return;
+  // === Arête temporaire en surbrillance (jaune) ===
+  const highlightEdge = useCallback((coords: number[][]) => {
+    if (!scene || coords.length < 2) return;
     resetHighlight();
-  
-    const material = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
-    const geometry = new THREE.BufferGeometry().setFromPoints(
-      coords.map(c => new THREE.Vector3(...c))
-    );
-    const edgeLine = new THREE.Line(geometry, material);
-  
-    highlightedEdgesRef.current.push(edgeLine);
-    scene.add(edgeLine);
-  };
 
-  const resetHighlight = () => {
+    const points = coords.map(([x, y, z]) => new THREE.Vector3(x, y, z));
+    const highlightLine = createLine(points, 0xffff00);
+    scene.add(highlightLine);
+    highlightedEdgesRef.current.push(highlightLine);
+  }, [scene]);
+
+  // === Réinitialise les arêtes surlignées ===
+  const resetHighlight = useCallback(() => {
     if (!scene) return;
-    highlightedEdgesRef.current.forEach(line => scene.remove(line));
+    highlightedEdgesRef.current.forEach(line => {
+      scene.remove(line);
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    });
     highlightedEdgesRef.current = [];
-  };
+  }, [scene]);
+
+  // === Nettoyage mémoire sur démontage (facultatif) ===
+  useEffect(() => {
+    return () => {
+      [...highlightedEdgesRef.current, ...permanentEdgesRef.current, ...outlineEdgesRef.current].forEach(line => {
+        scene?.remove(line);
+        line.geometry.dispose();
+        (line.material as THREE.Material).dispose();
+      });
+
+      highlightedEdgesRef.current = [];
+      permanentEdgesRef.current = [];
+      outlineEdgesRef.current = [];
+    };
+  }, [scene]);
 
   return {
     addPermanentEdge,

@@ -42,7 +42,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   isSaving: externalIsSaving,
   error: externalError
 }) => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode] = useState<'grid' | 'list'>('grid');
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
   const { handleSaveColumns, error: saveError, isSaving: internalIsSaving } = useColumnActions({
     columns,
@@ -54,7 +54,6 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     try {
       const success = await handleSaveColumns();
       if (success) {
@@ -68,17 +67,17 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   const handleEditColumn = (column: Column) => {
     setEditingColumn(column);
     onColumnDataChange({
-      thickness: column.thickness,
-      inner_height: column.inner_height,
-      inner_width: column.inner_width,
-      inner_depth: column.inner_depth,
-      design: column.design,
-      finish: column.finish,
-      door: column.door,
-      two_way_opening: column.two_way_opening,
-      knob_direction: column.knob_direction,
-      foam_type: column.foam_type,
-      body_count: column.body_count,
+      thickness: column.thickness ?? '',
+      inner_height: column.inner_height ?? '',
+      inner_width: column.inner_width ?? '',
+      inner_depth: column.inner_depth ?? '',
+      design: column.design ?? '',
+      finish: column.finish ?? '',
+      door: column.door ?? '',
+      two_way_opening: column.two_way_opening as 'C' | 'G' | 'D',
+      knob_direction: column.knob_direction as 'C' | 'G' | 'D',
+      foam_type: column.foam_type ?? '',
+      body_count: typeof column.body_count === 'number' ? column.body_count : parseInt(column.body_count ?? '0', 10),
     });
   };
 
@@ -92,10 +91,10 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
       design: '',
       finish: '',
       door: '',
-      two_way_opening: '',
-      knob_direction: '',
+      two_way_opening: 'C',
+      knob_direction: 'C',
       foam_type: '',
-      body_count: '',
+      body_count: 0,
     });
   };
 
@@ -186,16 +185,22 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
                 <Plus className="h-5 w-5 text-indigo-600 mr-2" />
                 {editingColumn ? 'Modifier la colonne' : 'Nouvelle colonne'}
               </h4>
-              <ColumnForm
-                id="column-form"
-                data={columnData}
-                onChange={onColumnDataChange}
-                metadata={metadata}
-                mode={editingColumn ? 'edit' : 'create'}
-                onSubmit={handleSubmit}
-                onCancel={editingColumn ? handleCancelEdit : undefined}
-                disabled={loading || isSavingState}
-              />
+              <div id="column-form">
+                <ColumnForm
+                  data={columnData}
+                  onChange={(partial) =>
+                    onColumnDataChange({
+                      ...columnData,
+                      ...partial,
+                    } as Step2bisFormData)
+                  }
+                  metadata={metadata}
+                  mode={editingColumn ? 'edit' : 'create'}
+                  onSubmit={handleSubmit}
+                  onCancel={editingColumn ? handleCancelEdit : undefined}
+                  disabled={loading || isSavingState}
+                />
+              </div>
             </div>
           </div>
         </div>

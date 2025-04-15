@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FormField, Button } from '../../../../components/ui';
 import { ArrowRight, AlertCircle } from 'lucide-react';
-import { useEditorApi, useConfigurationsApi } from '../../../../services/api/hooks';
+import { useConfigurationsApi } from '../../../../services/api/hooks';
 import type { Step1FormData } from '../../../../types';
 
 interface BasicInfoStepProps {
@@ -16,14 +16,15 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
   data,
   onChange,
   onNext,
-  configId,
-  isExistingConfig
+  isExistingConfig,
 }) => {
   const { isLoading, error } = useConfigurationsApi();
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdating] = useState(false);
 
-  const validateForm = () => {
+  const isSubmitting = isLoading || isUpdating;
+
+  const validateForm = (): string | null => {
     const name = data.config_name.trim();
     if (!name) return 'Le nom de la configuration est requis';
     if (name.length < 3) return 'Le nom doit contenir au moins 3 caractères';
@@ -31,16 +32,16 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
 
-    const error = validateForm();
-    if (error) {
-      setValidationError(error);
+    const validation = validateForm();
+    if (validation) {
+      setValidationError(validation);
       return;
     }
-    
+
     onNext(e);
   };
 
@@ -56,14 +57,18 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
       <FormField
         label="Nom de la configuration"
         id="config_name"
-        placeholder="Ex: Configuration Standard A1"
+        placeholder="Ex : Configuration Standard A1"
         value={data.config_name}
-        onChange={(e) => onChange({ ...data, config_name: e.target.value })}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          onChange({ ...data, config_name: e.target.value })
+        }
         className="transition-all duration-200 focus:ring-2"
         required
-        error={validationError}
+        error={validationError ?? undefined}
+        aria-invalid={!!validationError}
+        aria-describedby={validationError ? 'config_name_error' : undefined}
       />
-      
+
       <div className="flex items-center bg-gray-50 p-4 rounded-lg hover:bg-gray-100 transition-all duration-200">
         <input
           type="checkbox"
@@ -72,22 +77,22 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
           onChange={(e) => onChange({ ...data, is_catalog: e.target.checked })}
           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
         />
-        <label htmlFor="is_catalog" className="ml-2 block text-sm text-gray-600">
+        <label htmlFor="is_catalog" className="ml-2 text-sm text-gray-600">
           Cataloguée ?
         </label>
-        <div className="ml-auto text-xs text-gray-500">
+        <span className="ml-auto text-xs text-gray-500">
           Visible dans le catalogue public
-        </div>
+        </span>
       </div>
 
-      <div className="flex justify-end space-x-4 mt-8">
-        <Button 
-          type="submit" 
+      <div className="flex justify-end mt-8">
+        <Button
+          type="submit"
           className="flex items-center"
-          disabled={isLoading || isUpdating}
-          aria-label={isLoading || isUpdating ? 'Chargement...' : 'Suivant'}
+          disabled={isSubmitting}
+          aria-label={isSubmitting ? 'Chargement...' : 'Suivant'}
         >
-          {(isLoading || isUpdating) ? (
+          {isSubmitting ? (
             <>
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
               {isExistingConfig ? 'Mise à jour...' : 'Chargement...'}

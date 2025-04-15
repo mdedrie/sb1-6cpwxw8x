@@ -2,96 +2,115 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect';
+import type { RefObject } from 'react';
 
-export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>) {
+
+type SceneSetup = {
+  sceneRef: RefObject<THREE.Scene | null>;
+  cameraRef: RefObject<THREE.PerspectiveCamera | null>;
+  rendererRef: RefObject<THREE.WebGLRenderer | null>;
+  controlsRef: RefObject<OrbitControls | null>;
+  effect: OutlineEffect | null;
+};
+
+export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): SceneSetup {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const effectRef = useRef<OutlineEffect | null>(null);
+  const animationIdRef = useRef<number>();
+  const resizeObserverRef = useRef<ResizeObserver>();
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container || sceneRef.current) return;
 
-    // Scene setup
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf8f8f8);
     sceneRef.current = scene;
 
-    // Camera setup
     const camera = new THREE.PerspectiveCamera(
       75,
-      containerRef.current.clientWidth / containerRef.current.clientHeight,
+      container.clientWidth / container.clientHeight,
       0.1,
       1000
     );
     camera.position.set(4, 3, 6);
     cameraRef.current = camera;
 
-    // Renderer setup
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    containerRef.current.appendChild(renderer.domElement);
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Outline effect
     const effect = new OutlineEffect(renderer);
     effectRef.current = effect;
 
-    // Controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.update();
     controlsRef.current = controls;
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    scene.add(ambientLight);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    scene.add(new THREE.GridHelper(10, 10));
 
-    // Grid helper
-    const gridHelper = new THREE.GridHelper(10, 10);
-    scene.add(gridHelper);
-
-    // Animation
+    let mounted = true;
     const animate = () => {
-      requestAnimationFrame(animate);
-      if (controlsRef.current) {
-        controlsRef.current.update();
-      }
-      if (rendererRef.current) {
-        rendererRef.current.render(scene, camera);
-      }
+      if (!mounted) return;
+      animationIdRef.current = requestAnimationFrame(animate);
+      controls.update();
+      effect.render(scene, camera);
     };
     animate();
 
-    // Cleanup
+    resizeObserverRef.current = new ResizeObserver(() => {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    });
+    resizeObserverRef.current.observe(container);
+
     return () => {
+      mounted = false;
+      if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
+      if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
+
+      controls.dispose();
       renderer.dispose();
-      containerRef.current?.removeChild(renderer.domElement);
+
+      scene.traverse(obj => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(m => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+
+      // Clean refs
+      sceneRef.current = null;
+      cameraRef.current = null;
+      rendererRef.current = null;
+      controlsRef.current = null;
+      effectRef.current = null;
     };
-  }, []);
+  }, [containerRef]);
 
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      if (!containerRef.current || !cameraRef.current || !rendererRef.current) return;
+// dans useSceneSetup.ts
+return {
+  sceneRef,
+  cameraRef,
+  rendererRef,
+  controlsRef,
+  effect: effectRef.current
+};
 
-      const width = containerRef.current.clientWidth;
-      const height = containerRef.current.clientHeight;
-
-      cameraRef.current.aspect = width / height;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(width, height);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  return {
-    scene: sceneRef.current,
-    camera: cameraRef.current,
-    renderer: rendererRef.current,
-    controls: controlsRef.current,
-    effect: effectRef.current
-  };
 }

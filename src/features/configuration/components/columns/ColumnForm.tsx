@@ -7,8 +7,9 @@ export interface ColumnFormProps {
   onChange: (data: Partial<Column>) => void;
   metadata: StepMetadata | null;
   mode?: 'edit' | 'create';
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (data: Column) => void;
   onCancel?: () => void;
+  disabled?: boolean;
 }
 
 export const ColumnForm: React.FC<ColumnFormProps> = ({
@@ -17,11 +18,31 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
   metadata,
   mode = 'create',
   onSubmit,
-  onCancel
+  onCancel,
+  disabled = false
 }) => {
+  const safeColumnValues: Record<string, string> = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, v?.toString() ?? ''])
+  );
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      data.thickness &&
+      data.inner_height &&
+      data.inner_width &&
+      data.inner_depth &&
+      data.design &&
+      data.finish &&
+      data.door
+    ) {
+      onSubmit(data as Column);
+    }
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      {/* Dimensions */}
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <SelectField
           label="Épaisseur"
@@ -30,10 +51,9 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
           options={metadata?.parameters_by_category?.thicknesses}
           value={data.thickness || ''}
           metadata={metadata}
-          columnValues={data}
+          columnValues={safeColumnValues}
           parameterType="thicknesses"
           onChange={(v) => onChange({ ...data, thickness: v })}
-          className="text-sm"
         />
         <SelectField
           label="Hauteur"
@@ -42,10 +62,9 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
           options={metadata?.parameters_by_category?.inner_heights}
           value={data.inner_height || ''}
           metadata={metadata}
-          columnValues={data}
+          columnValues={safeColumnValues}
           parameterType="inner_heights"
           onChange={(v) => onChange({ ...data, inner_height: v })}
-          className="text-sm"
         />
         <SelectField
           label="Largeur"
@@ -54,10 +73,9 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
           options={metadata?.parameters_by_category?.inner_widths}
           value={data.inner_width || ''}
           metadata={metadata}
-          columnValues={data}
+          columnValues={safeColumnValues}
           parameterType="inner_widths"
           onChange={(v) => onChange({ ...data, inner_width: v })}
-          className="text-sm"
         />
         <SelectField
           label="Profondeur"
@@ -66,14 +84,12 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
           options={metadata?.parameters_by_category?.inner_depths}
           value={data.inner_depth || ''}
           metadata={metadata}
-          columnValues={data}
+          columnValues={safeColumnValues}
           parameterType="inner_depths"
           onChange={(v) => onChange({ ...data, inner_depth: v })}
-          className="text-sm"
         />
       </div>
 
-      {/* Apparence */}
       <SelectField
         label="Design"
         id="design"
@@ -81,10 +97,9 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
         options={metadata?.parameters_by_category?.designs}
         value={data.design || ''}
         metadata={metadata}
-        columnValues={data}
+        columnValues={safeColumnValues}
         parameterType="designs"
         onChange={(v) => onChange({ ...data, design: v })}
-        className="text-sm"
       />
       <SelectField
         label="Finition"
@@ -93,13 +108,11 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
         options={metadata?.parameters_by_category?.finishes}
         value={data.finish || ''}
         metadata={metadata}
-        columnValues={data}
+        columnValues={safeColumnValues}
         parameterType="finishes"
         onChange={(v) => onChange({ ...data, finish: v })}
-        className="text-sm"
       />
 
-      {/* Porte */}
       <div className="space-y-3">
         <h4 className="text-xs font-medium text-gray-500 uppercase">Configuration de la porte</h4>
         <div className="grid grid-cols-2 gap-3">
@@ -110,10 +123,9 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
             options={metadata?.parameters_by_category?.doors}
             value={data.door || ''}
             metadata={metadata}
-            columnValues={data}
+            columnValues={safeColumnValues}
             parameterType="doors"
             onChange={(v) => onChange({ ...data, door: v })}
-            className="text-sm"
           />
           <SelectField
             label="Ouverture"
@@ -121,10 +133,11 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
             options={metadata?.parameters_by_category?.['2ways']}
             value={data.two_way_opening || ''}
             metadata={metadata}
-            columnValues={data}
+            columnValues={safeColumnValues}
             parameterType="2ways"
-            onChange={(v) => onChange({ ...data, two_way_opening: v })}
-            className="text-sm"
+            onChange={(v) =>
+              onChange({ ...data, two_way_opening: v as 'C' | 'G' | 'D' })
+            }
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -134,10 +147,11 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
             options={metadata?.parameters_by_category?.knobs}
             value={data.knob_direction || ''}
             metadata={metadata}
-            columnValues={data}
+            columnValues={safeColumnValues}
             parameterType="knobs"
-            onChange={(v) => onChange({ ...data, knob_direction: v })}
-            className="text-sm"
+            onChange={(v) =>
+              onChange({ ...data, knob_direction: v as 'C' | 'G' | 'D' })
+            }
           />
           <div>
             <label htmlFor="body_count" className="block text-xs font-medium text-gray-700">
@@ -150,27 +164,30 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
               min={1}
               max={10}
               value={data.body_count ?? 1}
-              onChange={(e) => onChange({ ...data, body_count: Math.max(1, parseInt(e.target.value) || 1) })}
+              disabled={disabled}
+              onChange={(e) =>
+                onChange({
+                  ...data,
+                  body_count: Math.max(1, parseInt(e.target.value) || 1),
+                })
+              }
               className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm h-9"
             />
           </div>
         </div>
       </div>
 
-      {/* Options */}
       <SelectField
         label="Type de mousse"
         id="foam_type"
         options={metadata?.parameters_by_category?.foams}
         value={data.foam_type || ''}
         metadata={metadata}
-        columnValues={data}
+        columnValues={safeColumnValues}
         parameterType="foams"
         onChange={(v) => onChange({ ...data, foam_type: v })}
-        className="text-sm"
       />
 
-      {/* Boutons */}
       <div className="flex justify-end space-x-2 pt-4">
         {onCancel && (
           <button
@@ -183,6 +200,7 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
         )}
         <button
           type="submit"
+          disabled={disabled}
           className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 border border-transparent rounded-md shadow-sm"
         >
           {mode === 'edit' ? 'Mettre à jour' : 'Ajouter'} la colonne

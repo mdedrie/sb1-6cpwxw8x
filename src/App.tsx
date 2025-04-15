@@ -3,6 +3,7 @@ import { RouterProvider, createBrowserRouter, Navigate } from 'react-router-dom'
 import { Catalog } from './pages/Catalog';
 import { ConfigurationEditor } from './pages/ConfigurationEditor';
 import { Layout } from './features/layout/Layout';
+import { ToastProvider } from './components/ui/toast-context'; // ← 🔥
 
 const router = createBrowserRouter([
   {
@@ -27,19 +28,14 @@ const router = createBrowserRouter([
       }
     ]
   }
-], {
-  future: {
-    v7_startTransition: true,
-    v7_relativeSplatPath: true,
-    v7_normalizeFormMethod: true
-  }
-});
+]);
 
 function App() {
   return (
-    <RouterProvider router={router} />
+    <ToastProvider>
+      <RouterProvider router={router} />
+    </ToastProvider>
   );
 }
 
-
-export default App
+export default App;

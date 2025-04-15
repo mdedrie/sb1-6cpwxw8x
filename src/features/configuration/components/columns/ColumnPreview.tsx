@@ -39,10 +39,10 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({ columns, metadata 
       const widthOption = metadata?.parameters_by_category?.inner_widths.find(w => w.ref === column.inner_width);
       const depthOption = metadata?.parameters_by_category?.inner_depths.find(d => d.ref === column.inner_depth);
       
-      const thickness = thicknessOption?.dim || 0;
-      const height = heightOption?.dim || 0;
-      const width = widthOption?.dim || 0;
-      const depth = depthOption?.dim || 0;
+      const thickness = (thicknessOption as { dim?: number })?.dim || 0;
+      const height = (heightOption as { dim?: number })?.dim || 0;
+      const width = (widthOption as { dim?: number })?.dim || 0;
+      const depth = (depthOption as { dim?: number })?.dim || 0;
       
       return {
         totalThickness: acc.totalThickness + thickness,
