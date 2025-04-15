@@ -1,3 +1,4 @@
+import type { ApiResponse } from './ApiController'; // ou le chemin réel du fichier
 export const API_BASE_URL = 'https://icecoreapi-production.up.railway.app/api';
 
 export const DEFAULT_HEADERS = {
@@ -106,9 +107,10 @@ export async function handleResponse<T>(response: Response): Promise<ApiResponse
       const data = await response.json();
       if (status === 422) {
         error = Array.isArray(data.detail) 
-          ? data.detail.map(d => d.msg).join(', ')
+          ? data.detail.map((d: { msg: string }) => d.msg).join(', ')
           : data.detail || 'Données invalides';
       }
+      
       if (status === 500) {
         error = 'Erreur serveur interne. Veuillez réessayer dans quelques instants.';
       }

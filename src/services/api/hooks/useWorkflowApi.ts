@@ -5,10 +5,12 @@ import type { StepMetadata } from '../../../types';
 interface UseWorkflowApiReturn {
   getMetadata: (filters?: string[]) => Promise<StepMetadata>;
   addColumn: (configId: string, columnData: any) => Promise<void>;
+  updateColumn: (configId: string, columnId: string, columnData: any) => Promise<void>;
   getColumns: (configId: string) => Promise<any[]>;
   isLoading: boolean;
   error: string | null;
 }
+
 
 export function useWorkflowApi(): UseWorkflowApiReturn {
   const [isLoading, setIsLoading] = useState(false);
@@ -92,9 +94,35 @@ export function useWorkflowApi(): UseWorkflowApiReturn {
     }
   }, []);
 
+  const updateColumn = useCallback(async (configId: string, columnId: string | number, columnData: any): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+  
+      const { error } = await api.put(
+        `/configuration_workflow/step2bis/update_column/${configId}/${columnId}`,
+        columnData
+      );
+  
+      if (error) {
+        throw new ApiError(error, 0);
+      }
+    } catch (err) {
+      const message = err instanceof ApiError
+        ? err.message
+        : 'Erreur lors de la mise à jour de la colonne';
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+  
+
   return {
     getMetadata,
     addColumn,
+    updateColumn,
     getColumns,
     isLoading,
     error

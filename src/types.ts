@@ -110,6 +110,7 @@ export interface Configuration {
 }
 
 export interface ParameterItem {
+  id: number;
   ref: string;
   desc: string;
   dim?: number;

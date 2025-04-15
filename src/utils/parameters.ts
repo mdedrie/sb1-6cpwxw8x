@@ -1,4 +1,4 @@
-import type { StepMetadata } from '../types';
+import type { StepMetadata, ParameterItem } from '../types';
 
 interface ParameterMappingError {
   category: string;
@@ -7,6 +7,8 @@ interface ParameterMappingError {
 }
 
 const mappingErrors: ParameterMappingError[] = [];
+
+type CategoryKey = keyof StepMetadata['parameters_by_category'];
 
 /**
  * Gets parameter ID from category and reference
@@ -22,7 +24,7 @@ export function getParameterId(category: string, ref: string): number | undefine
  * Convertit un ID de paramètre en ref en utilisant les metadata
  */
 export function getRefFromId(metadata: StepMetadata | null, category: string, id: number): string | undefined {
-  if (!metadata?.parameters_by_category?.[category]) {
+  if (!metadata?.parameters_by_category?.[category as CategoryKey]) {
     mappingErrors.push({
       category,
       id,
@@ -31,12 +33,14 @@ export function getRefFromId(metadata: StepMetadata | null, category: string, id
     return undefined;
   }
 
-  const param = metadata.parameters_by_category[category].find(p => p.id === id);
-  
+  const param = metadata.parameters_by_category[category as CategoryKey].find(
+    (p: ParameterItem) => p.id === id
+  );
+
   if (!param) {
     mappingErrors.push({
       category,
-      id, 
+      id,
       error: `ID ${id} non trouvé dans la catégorie "${category}"`
     });
   }
@@ -57,8 +61,11 @@ export function getAndClearMappingErrors(): ParameterMappingError[] {
  * Convertit une ref de paramètre en ID en utilisant les metadata
  */
 export function getIdFromRef(metadata: StepMetadata | null, category: string, ref: string): number | undefined {
-  if (!metadata?.parameters_by_category?.[category]) return undefined;
-  const param = metadata.parameters_by_category[category].find(p => p.ref === ref);
+  if (!metadata) return undefined;
+
+  const params = metadata.parameters_by_category[category as CategoryKey];
+  const param = params?.find((p: ParameterItem) => p.ref === ref);
+
   return param?.id;
 }
 

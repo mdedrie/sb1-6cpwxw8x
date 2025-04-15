@@ -89,31 +89,3 @@
 .language-json .token.null {
   color: #6b7280 !important;
 }
-
-/* Prism.js theme customization */
-.language-json {
-  background: transparent !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  font-size: 0.875rem !important;
-}
-
-.language-json .token.property {
-  color: #6366f1 !important;
-}
-
-.language-json .token.string {
-  color: #059669 !important;
-}
-
-.language-json .token.number {
-  color: #d946ef !important;
-}
-
-.language-json .token.boolean {
-  color: #ea580c !important;
-}
-
-.language-json .token.null {
-  color: #6b7280 !important;
-}

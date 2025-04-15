@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { FormField, Button } from '../../../../components/ui';
 import { ArrowRight, AlertCircle } from 'lucide-react';
-import { useConfigurationsApi } from '../../../../services/api/hooks';
 import type { Step1FormData } from '../../../../types';
 
 interface BasicInfoStepProps {
   data: Step1FormData;
   onChange: (data: Step1FormData) => void;
-  onNext: (e: React.FormEvent) => void;
+  onNext: () => void;
   configId?: string;
   isExistingConfig?: boolean;
 }
@@ -18,11 +17,8 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
   onNext,
   isExistingConfig,
 }) => {
-  const { isLoading, error } = useConfigurationsApi();
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [isUpdating] = useState(false);
-
-  const isSubmitting = isLoading || isUpdating;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validateForm = (): string | null => {
     const name = data.config_name.trim();
@@ -42,15 +38,19 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
       return;
     }
 
-    onNext(e);
+    setIsSubmitting(true);
+    onNext();
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {(error || validationError) && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center text-red-700">
+      {validationError && (
+        <div
+          className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center text-red-700"
+          role="alert"
+        >
           <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <p>{error || validationError}</p>
+          <p>{validationError}</p>
         </div>
       )}
 

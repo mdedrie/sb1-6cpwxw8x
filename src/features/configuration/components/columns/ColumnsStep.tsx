@@ -26,14 +26,27 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   const [viewMode] = useState<'grid' | 'list'>('grid');
   const [editingColumn, setEditingColumn] = useState<Partial<Column> | null>(null);
 
-  const handleSubmit = (newColumn: Column) => {
-    const updatedColumns = editingColumn?.id
-      ? columns.map((col) => (col.id === editingColumn.id ? newColumn : col))
-      : [...columns, newColumn];
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
 
-    onColumnsChange(updatedColumns);
-    setEditingColumn(null);
-    setIsFormCollapsed(false);
+    if (
+      editingColumn?.thickness &&
+      editingColumn.inner_height &&
+      editingColumn.inner_width &&
+      editingColumn.inner_depth &&
+      editingColumn.design &&
+      editingColumn.finish &&
+      editingColumn.door
+    ) {
+      const newColumn = editingColumn as Column;
+      const updatedColumns = editingColumn.id
+        ? columns.map((col) => (col.id === editingColumn.id ? newColumn : col))
+        : [...columns, newColumn];
+
+      onColumnsChange(updatedColumns);
+      setEditingColumn(null);
+      setIsFormCollapsed(false);
+    }
   };
 
   const handleCancelEdit = () => {

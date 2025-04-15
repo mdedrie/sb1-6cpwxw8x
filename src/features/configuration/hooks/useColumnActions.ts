@@ -22,23 +22,19 @@ export function useColumnActions({
 }: UseColumnActionsProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const { addColumn } = useWorkflowApi();
+  const { addColumn, updateColumn } = useWorkflowApi();
 
   const validateColumnPosition = useCallback((column: Column, columns: Column[]): string | null => {
     const isFirstPosition = column.position === 1;
     const isLastPosition = column.position === columns.length;
-    
-    // Extract the design code from the design ref
     const designCode = column.design.split('-')[0];
-    
+
     if (isFirstPosition && RESTRICTED_FIRST_POSITION.includes(designCode)) {
       return `Le design ${designCode} ne peut pas être en première position`;
     }
-    
     if (isLastPosition && RESTRICTED_LAST_POSITION.includes(designCode)) {
       return `Le design ${designCode} ne peut pas être en dernière position`;
     }
-    
     return null;
   }, []);
 
@@ -56,29 +52,18 @@ export function useColumnActions({
       two_way_opening: '2ways',
       knob_direction: 'knobs',
       foam_type: 'foams'
-    };
+    } as const;
 
-    // Compare position
-    if (newColumn.position !== existingColumn.column_order) {
-      return false;
-    }
+    if (newColumn.position !== existingColumn.column_order) return false;
+    if ((newColumn.body_count || 1) !== existingColumn.column_body_count) return false;
 
-    // Compare body count
-    if ((newColumn.body_count || 1) !== existingColumn.column_body_count) {
-      return false;
-    }
-
-    // Compare all parameters
     for (const [field, category] of Object.entries(parameterCategories)) {
       const newValue = newColumn[field as keyof Column];
       if (!newValue) continue;
-
-      const existingId = existingColumn[`column_${field === 'door' ? 'door_type' : field === 'foam_type' ? 'foam_type' : field}_id`];
-      const newId = getIdFromRef(metadata, category, newValue);
-
-      if (existingId !== newId) {
-        return false;
-      }
+      const fieldName = field === 'door' ? 'door_type' : field === 'foam_type' ? 'foam_type' : field;
+      const existingId = existingColumn[`column_${fieldName}_id`];
+      const newId = getIdFromRef(metadata, category, newValue as string);
+      if (existingId !== newId) return false;
     }
 
     return true;
@@ -97,24 +82,19 @@ export function useColumnActions({
       setError('ID de configuration manquant');
       return false;
     }
-    
-    // Validate all column positions before saving
+
     const positionError = validateAllPositions(columns);
     if (positionError) {
       setError(positionError);
       return false;
     }
 
-    // Sort existing columns by order
     const sortedExistingColumns = [...existingColumns].sort((a, b) => a.column_order - b.column_order);
-
-    // Check if columns have changed
     const hasChanges = columns.some((col, index) => {
       const existingColumn = sortedExistingColumns[index];
       return !existingColumn || !compareColumns(col, existingColumn);
     });
 
-    // If no changes, return success without making API calls
     if (!hasChanges) {
       console.log('No changes detected in columns, skipping save');
       return true;
@@ -135,18 +115,16 @@ export function useColumnActions({
         two_way_opening: '2ways',
         knob_direction: 'knobs',
         foam_type: 'foams'
-      };
+      } as const;
 
-      // Process columns sequentially
       for (const column of columns) {
         const mappedIds = Object.entries(parameterCategories).reduce((acc, [field, category]) => {
           const value = column[field as keyof Column];
           if (value) {
-            const param = metadata?.parameters_by_category?.[category]?.find(p => p.ref === value);
-            if (param?.id) {
-              const fieldName = field === 'door' ? 'door_type' : 
-                              field === 'foam_type' ? 'foam_type' : 
-                              field;
+            const params = metadata?.parameters_by_category?.[category];
+            const param = params?.find(p => p.ref === value);
+            if (param && typeof param.id === 'number') {
+              const fieldName = field === 'door' ? 'door_type' : field === 'foam_type' ? 'foam_type' : field;
               acc[`column_${fieldName}_id`] = param.id;
             }
           }
@@ -160,9 +138,12 @@ export function useColumnActions({
           configuration_id: configId
         };
 
-        await addColumn(configId, columnData);
+        if (column.id) {
+          await updateColumn(configId, column.id, columnData);
+        } else {
+          await addColumn(configId, columnData);
+        }
 
-        // Add delay between requests
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
@@ -174,7 +155,7 @@ export function useColumnActions({
     } finally {
       setIsSaving(false);
     }
-  }, [configId, columns, metadata, addColumn]);
+  }, [configId, columns, metadata, addColumn, updateColumn, existingColumns, compareColumns, validateAllPositions]);
 
   return {
     error,

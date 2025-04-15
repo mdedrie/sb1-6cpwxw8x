@@ -32,7 +32,7 @@ interface UseCompatibilityProps {
 }
 
 const normalizeParameterType = (type: string): string => {
-  const mapping: Record<string, string> = {
+  const map: Record<string, string> = {
     thicknesses: 'thickness',
     inner_heights: 'inner_height',
     inner_widths: 'inner_width',
@@ -40,12 +40,10 @@ const normalizeParameterType = (type: string): string => {
     foams: 'foam_type',
     '2ways': 'two_way_opening'
   };
-  return mapping[type] || type;
+  return map[type] ?? type;
 };
 
-const shouldCheckIncompatibilities = (parameterType?: KnownParameterType): boolean => {
-  return parameterType !== undefined && parameterType !== 'body_count';
-};
+const isCheckable = (type?: KnownParameterType): boolean => type !== 'body_count' && !!type;
 
 export function useCompatibility({
   metadata,
@@ -56,105 +54,102 @@ export function useCompatibility({
   debugOption
 }: UseCompatibilityProps) {
   const columnValuesWithDefaults = useMemo(() => {
-    if (!columnValues) return undefined;
-    return { ...columnValues };
+    return columnValues ? { ...columnValues } : undefined;
   }, [columnValues]);
 
   const filteredOptions = useMemo(() => {
-    if (!metadata || !columnValuesWithDefaults || !parameterType || !options) return options;
-    if (!shouldCheckIncompatibilities(parameterType)) return options;
+    if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !isCheckable(parameterType)) {
+      return options;
+    }
 
-    const normalizedCurrentType = normalizeParameterType(parameterType);
+    const normCurrentType = normalizeParameterType(parameterType);
 
-    return options.filter(option => {
+    return options.filter((option) => {
       if (option.ref === currentValue) return true;
 
-      for (const [key, val] of Object.entries(columnValuesWithDefaults)) {
-        if (!val || key === 'body_count') continue;
+      return !Object.entries(columnValuesWithDefaults).some(([key, val]) => {
+        if (!val || key === 'body_count') return false;
+        const normKey = normalizeParameterType(key);
 
-        const normalizedKey = normalizeParameterType(key);
+        const direct = metadata.incompatibilities_by_ref[option.ref]?.[normKey]?.includes(val);
+        const reverse = metadata.incompatibilities_by_ref[val]?.[normCurrentType]?.includes(option.ref);
 
-        const directConflict = metadata.incompatibilities_by_ref[option.ref]?.[normalizedKey]?.includes(val);
-        const reverseConflict = metadata.incompatibilities_by_ref[val]?.[normalizedCurrentType]?.includes(option.ref);
-
-        if (directConflict || reverseConflict) return false;
-      }
-
-      return true;
+        return direct || reverse;
+      });
     });
   }, [metadata, columnValuesWithDefaults, parameterType, options, currentValue]);
 
   const incompatibilityReasons = useMemo(() => {
-    if (!metadata || !columnValuesWithDefaults || !parameterType || !options) return null;
-    if (!shouldCheckIncompatibilities(parameterType)) return null;
+    if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !isCheckable(parameterType)) {
+      return null;
+    }
 
-    const normalizedCurrentType = normalizeParameterType(parameterType);
     const reasons = new Map<string, string>();
+    const normType = normalizeParameterType(parameterType);
 
-    options.forEach(option => {
+    for (const option of options) {
       for (const [key, val] of Object.entries(columnValuesWithDefaults)) {
         if (!val || key === 'body_count') continue;
 
-        const normalizedKey = normalizeParameterType(key);
+        const normKey = normalizeParameterType(key);
+        const direct = metadata.incompatibilities_by_ref[option.ref]?.[normKey]?.includes(val);
+        const reverse = metadata.incompatibilities_by_ref[val]?.[normType]?.includes(option.ref);
 
-        const directConflict = metadata.incompatibilities_by_ref[option.ref]?.[normalizedKey]?.includes(val);
-        const reverseConflict = metadata.incompatibilities_by_ref[val]?.[normalizedCurrentType]?.includes(option.ref);
-
-        if (directConflict) {
+        if (direct) {
           reasons.set(option.ref, `Incompatible avec ${key} (${val})`);
           break;
         }
-        if (reverseConflict) {
+        if (reverse) {
           reasons.set(option.ref, `${key} (${val}) est incompatible`);
           break;
         }
       }
-    });
+    }
 
     return reasons;
   }, [metadata, columnValuesWithDefaults, parameterType, options]);
 
   const incompatibilityDebug = useMemo(() => {
-    if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !debugOption) return [];
+    if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !debugOption) {
+      return [];
+    }
 
     const debug: IncompatibilityDebug[] = [];
-    const normalizedType = normalizeParameterType(parameterType);
-    const option = options.find(o => o.ref === debugOption);
+    const normType = normalizeParameterType(parameterType);
+    const target = options.find((o) => o.ref === debugOption);
+    if (!target) return [];
 
-    if (!option) return [];
+    for (const [key, val] of Object.entries(columnValuesWithDefaults)) {
+      if (!val || key === 'body_count') continue;
 
-    Object.entries(columnValuesWithDefaults).forEach(([key, val]) => {
-      if (!val || key === 'body_count') return;
+      const normKey = normalizeParameterType(key);
 
-      const normalizedKey = normalizeParameterType(key);
-
-      if (metadata.incompatibilities_by_ref[option.ref]?.[normalizedKey]?.includes(val)) {
+      if (metadata.incompatibilities_by_ref[debugOption]?.[normKey]?.includes(val)) {
         debug.push({
-          option: option.ref,
+          option: debugOption,
           parameter: key,
           value: val,
           source: 'direct',
-          rule: `${option.ref} est incompatible avec ${key} = ${val}`
+          rule: `${debugOption} est incompatible avec ${key} = ${val}`
         });
       }
 
-      if (metadata.incompatibilities_by_ref[val]?.[normalizedType]?.includes(option.ref)) {
+      if (metadata.incompatibilities_by_ref[val]?.[normType]?.includes(debugOption)) {
         debug.push({
-          option: option.ref,
+          option: debugOption,
           parameter: key,
           value: val,
           source: 'reverse',
-          rule: `${key} = ${val} est incompatible avec ${option.ref}`
+          rule: `${key} = ${val} est incompatible avec ${debugOption}`
         });
       }
-    });
+    }
 
     return debug;
   }, [metadata, columnValuesWithDefaults, parameterType, options, debugOption]);
 
   const incompatibleCount = useMemo(() => {
-    if (!options || !filteredOptions) return 0;
-    return options.length - filteredOptions.length;
+    return options && filteredOptions ? options.length - filteredOptions.length : 0;
   }, [options, filteredOptions]);
 
   return {

@@ -7,7 +7,7 @@ export interface ColumnFormProps {
   onChange: (data: Partial<Column>) => void;
   metadata: StepMetadata | null;
   mode?: 'edit' | 'create';
-  onSubmit: (data: Column) => void;
+  onSubmit: (e: React.FormEvent) => void;
   onCancel?: () => void;
   disabled?: boolean;
 }
@@ -19,30 +19,14 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
   mode = 'create',
   onSubmit,
   onCancel,
-  disabled = false
+  disabled = false,
 }) => {
   const safeColumnValues: Record<string, string> = Object.fromEntries(
     Object.entries(data).map(([k, v]) => [k, v?.toString() ?? ''])
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (
-      data.thickness &&
-      data.inner_height &&
-      data.inner_width &&
-      data.inner_depth &&
-      data.design &&
-      data.finish &&
-      data.door
-    ) {
-      onSubmit(data as Column);
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <SelectField
           label="Épaisseur"
@@ -135,9 +119,7 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
             metadata={metadata}
             columnValues={safeColumnValues}
             parameterType="2ways"
-            onChange={(v) =>
-              onChange({ ...data, two_way_opening: v as 'C' | 'G' | 'D' })
-            }
+            onChange={(v) => onChange({ ...data, two_way_opening: v as 'C' | 'G' | 'D' })}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -149,9 +131,7 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
             metadata={metadata}
             columnValues={safeColumnValues}
             parameterType="knobs"
-            onChange={(v) =>
-              onChange({ ...data, knob_direction: v as 'C' | 'G' | 'D' })
-            }
+            onChange={(v) => onChange({ ...data, knob_direction: v as 'C' | 'G' | 'D' })}
           />
           <div>
             <label htmlFor="body_count" className="block text-xs font-medium text-gray-700">
