@@ -3,7 +3,7 @@ import { useConfigurationsApi } from '../../../services/api/hooks/useConfigurati
 import { useEditorApi } from '../../../services/api/hooks/useEditorApi';
 import type { Step1FormData, Step2FormData, Step2bisFormData, Column } from '../../../types';
 
-type Step = 'basic' | 'dimensions' | 'columns';
+type Step = 'basic' | 'dimensions' | 'columns' | 'volumes' | 'corners';
 
 export function useConfigurationState(configId?: string) {
   const [currentStep, setCurrentStep] = useState<Step>('basic');
@@ -134,6 +134,7 @@ export function useConfigurationState(configId?: string) {
     handleCreateConfiguration,
     handleUpdateDimensions,
     loading,
+    setError,
     error
   };
 }

@@ -10,33 +10,26 @@ export function useMetadata(filters?: string[]) {
 
   useEffect(() => {
     let mounted = true;
-    
+
     const fetchMetadata = async () => {
       try {
         setLoading(true);
         setError(null);
-        
         const data = await getMetadata(filters);
-        
-        if (!mounted) return;
-        setMetadata(data);
-      } catch (error) {
-        if (!mounted) return;
-        setError(error instanceof Error ? error.message : 'Failed to load configuration data');
-        console.error(error);
+        if (mounted) setMetadata(data);
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load configuration data');
+          console.error(err);
+        }
       } finally {
-        if (!mounted) return;
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     fetchMetadata();
     return () => { mounted = false; };
-  }, [filters]);
+  }, [filters, getMetadata]);
 
-  return {
-    metadata,
-    loading,
-    error
-  };
+  return { metadata, loading, error };
 }

@@ -19,8 +19,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/ui';
 import { useConfigurationsApi } from '../services/api/hooks/useConfigurationsApi';
-import { FloatingToolbox } from '../features/debug';
-import { ApiConsole } from '../features/debug';
+import type { Configuration } from '../types'; // adapte le chemin selon l’arborescence
 
 type ViewMode = 'grid' | 'list';
 
@@ -32,24 +31,6 @@ const SORT_OPTIONS = [
 ] as const;
 
 type SortOption = typeof SORT_OPTIONS[number]['value'];
-
-export interface Configuration {
-  id: string;
-  name: string;
-  is_catalog: boolean;
-  description: string;
-  created_at: string;
-  dimensions: {
-    outer_height: number;
-    outer_width: number;
-    outer_depth: number;
-  } | null;
-  user_id: string;
-  buy_price: number | null;
-  sell_price: number | null;
-  status: 'draft' | 'complete';
-  tags?: string[];
-}
 
 interface DeleteConfirmation {
   id: string;
@@ -118,7 +99,6 @@ function useDebounce<T>(value: T, delay: number): T {
 export function Catalog() {
   const navigate = useNavigate();
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCatalogOnly, setShowCatalogOnly] = useState(false);
@@ -141,8 +121,8 @@ export function Catalog() {
         const search = debouncedSearchTerm.toLowerCase();
         const matchesSearch =
           !search ||
-          config.name.toLowerCase().includes(search) ||
-          config.description.toLowerCase().includes(search);
+          (config.name?.toLowerCase() ?? '').includes(search) ||
+          (config.description?.toLowerCase() ?? '').includes(search);
         const matchesCatalog = !showCatalogOnly || config.is_catalog;
         const matchesTags =
           selectedTags.length === 0 || selectedTags.every(tag => config.tags?.includes(tag));
@@ -151,18 +131,18 @@ export function Catalog() {
       .sort((a, b) => {
         switch (sortBy) {
           case 'name':
-            return a.name.localeCompare(b.name);
+            return (a.name ?? '').localeCompare(b.name ?? '');
           case 'date':
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
           case 'size': {
             if (!a.dimensions || !b.dimensions) return a.dimensions ? -1 : 1;
-            const aVolume = a.dimensions.outer_height * a.dimensions.outer_width * a.dimensions.outer_depth;
-            const bVolume = b.dimensions.outer_height * b.dimensions.outer_width * b.dimensions.outer_depth;
+            const aVolume = (a.dimensions.outer_height ?? 0) * (a.dimensions.outer_width ?? 0) * (a.dimensions.outer_depth ?? 0);
+            const bVolume = (b.dimensions.outer_height ?? 0) * (b.dimensions.outer_width ?? 0) * (b.dimensions.outer_depth ?? 0);
             return bVolume - aVolume;
           }
           case 'price': {
-            if (a.sell_price === null || b.sell_price === null) return a.sell_price ? -1 : 1;
-            return b.sell_price - a.sell_price;
+            if (a.sell_price == null || b.sell_price == null) return a.sell_price ? -1 : 1;
+            return (b.sell_price ?? 0) - (a.sell_price ?? 0);
           }
           default:
             return 0;
@@ -317,11 +297,12 @@ export function Catalog() {
               Ouvrir
             </Button>
             <Button
-              variant="secondary"
-              onClick={() => handleDeleteRequest(config.id, config.name)}
-              aria-label={`Supprimer la configuration ${config.name}`}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-200"
-            >
+            variant="secondary"
+            onClick={() => handleDeleteRequest(config.id ?? '', config.name ?? '')}
+            aria-label={`Supprimer la configuration ${config.name ?? ''}`}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-200"
+            disabled={!config.id} // Optionnel, désactive le bouton si id absent
+          >
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -520,24 +501,6 @@ export function Catalog() {
           onConfirm={confirmDelete}
         />
       )}
-
-      <FloatingToolbox
-        context="catalog"
-        data={{
-          filters: { searchTerm, showCatalogOnly, selectedTags, sortBy, viewMode },
-          stats: { totalConfigs: configurations.length, filteredConfigs: filteredConfigurations.length, availableTags: allTags },
-          loading,
-          error,
-          refreshKey,
-        }}
-        debugTitle="Catalog Debug"
-        apiTitle="IceCore API Console"
-      />
-      <ApiConsole
-        title="API Test Console"
-        position="bottom-right"
-        maxHeight="64"
-      />
     </div>
   );
 }

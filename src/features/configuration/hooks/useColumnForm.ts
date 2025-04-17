@@ -9,32 +9,40 @@ const emptyColumnData: Step2bisFormData = {
   design: '',
   finish: '',
   door: '',
-  two_way_opening: '',
-  knob_direction: '',
+  two_way_opening: 'C',
+  knob_direction: 'C',
   foam_type: '',
 };
 
 export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
-  const [columnData, setColumnData] = useState<Step2bisFormData>(emptyColumnData);
+  const [columnData, setColumnData] = useState<Step2bisFormData>({ ...emptyColumnData });
   const [formError, setFormError] = useState<string | null>(null);
 
-  const resetForm = () => {
-    setColumnData(emptyColumnData);
+  // Mémorisation pour best-practices si utilisé comme callback descendant :
+  const resetForm = useCallback(() => {
+    setColumnData({ ...emptyColumnData });
     setEditingColumn(null);
     setFormError(null);
-  };
+  }, []);
 
-  const validateColumnData = (): boolean => {
-    const requiredFields = ['thickness', 'inner_height', 'design', 'door'];
+  // Permet un feedback plus précis si besoin
+  const validateColumnData = useCallback((): boolean => {
+    const requiredFields: (keyof Step2bisFormData)[] = [
+      'thickness',
+      'inner_height',
+      'design',
+      'door',
+    ];
     for (const field of requiredFields) {
-      if (!columnData[field as keyof Step2bisFormData]) {
+      if (!columnData[field]) {
         setFormError('Tous les champs obligatoires ne sont pas remplis.');
         return false;
       }
     }
+    setFormError(null);
     return true;
-  };
+  }, [columnData]);
 
   const handleAddColumn = useCallback((columns: Column[]) => {
     if (!validateColumnData()) return;
@@ -47,7 +55,7 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
 
     onColumnsChange([...columns, newColumn]);
     resetForm();
-  }, [columnData, onColumnsChange]);
+  }, [columnData, onColumnsChange, resetForm, validateColumnData]);
 
   const handleUpdateColumn = useCallback((columns: Column[]) => {
     if (!editingColumn) return;
@@ -58,7 +66,7 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
 
     onColumnsChange(updatedColumns);
     resetForm();
-  }, [editingColumn, columnData, onColumnsChange]);
+  }, [editingColumn, columnData, onColumnsChange, resetForm]);
 
   const handleDeleteColumn = useCallback((columns: Column[], id: string) => {
     const updatedColumns = columns
@@ -67,7 +75,7 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
 
     onColumnsChange(updatedColumns);
     if (editingColumn?.id === id) resetForm();
-  }, [onColumnsChange, editingColumn]);
+  }, [onColumnsChange, editingColumn, resetForm]);
 
   const handleDuplicateColumn = useCallback((columns: Column[], column: Column) => {
     const newColumn: Column = {
@@ -90,6 +98,6 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
     handleUpdateColumn,
     handleDeleteColumn,
     handleDuplicateColumn,
-    resetForm
+    resetForm,
   };
 }

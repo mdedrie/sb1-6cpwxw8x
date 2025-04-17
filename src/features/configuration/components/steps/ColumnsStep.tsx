@@ -232,3 +232,5 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
     </div>
   );
 };
+
+export const Step2bisForm = ColumnsStep;

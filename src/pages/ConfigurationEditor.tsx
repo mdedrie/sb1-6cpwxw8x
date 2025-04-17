@@ -4,7 +4,6 @@ import { useConfigurationState } from '../features/configuration/hooks/useConfig
 import { useMetadata } from '../features/configuration/hooks/useMetadata';
 import { useEditorApi } from '../services/api/hooks';
 import { useWorkflowApi } from '../services/api/hooks';
-import { FloatingToolbox } from '../features/debug';
 import { getRefFromId } from '../utils/parameters';
 import {
   ConfigurationHeader,
@@ -17,7 +16,7 @@ import {
   VolumesStep,
   CornersStep
 } from '../features/configuration/components';
-import type { Column, Step2bisFormData } from '../types';
+import type { Column,Step1FormData, Step2bisFormData } from '../types';
 
 export function ConfigurationEditor() {
   const { id } = useParams();
@@ -30,8 +29,8 @@ export function ConfigurationEditor() {
     design: '',
     finish: '',
     door: '',
-    two_way_opening: '',
-    knob_direction: '',
+    two_way_opening: 'C', // default valid
+    knob_direction: 'C',  // default valid
     foam_type: '',
     body_count: 1
   });
@@ -49,7 +48,8 @@ export function ConfigurationEditor() {
     handleCreateConfiguration,
     handleUpdateDimensions,
     loading: stateLoading,
-    error: stateError
+    error: stateError,
+    setError 
   } = useConfigurationState(id);
 
   const { metadata, loading: metadataLoading, error: metadataError } = useMetadata();
@@ -109,9 +109,9 @@ export function ConfigurationEditor() {
             design: getRefFromId(metadata, 'designs', col.column_design_id) || '',
             finish: getRefFromId(metadata, 'finishes', col.column_finish_id) || '',
             door: getRefFromId(metadata, 'doors', col.column_door_type_id) || '',
-            two_way_opening: getRefFromId(metadata, '2ways', col.column_two_way_opening_id) || '',
-            knob_direction: getRefFromId(metadata, 'knobs', col.column_knob_direction_id) || '',
-            foam_type: col.column_foam_type_id ? getRefFromId(metadata, 'foams', col.column_foam_type_id) : '',
+            two_way_opening: getRefFromId(metadata, '2ways', col.column_two_way_opening_id) as 'C' | 'G' | 'D',
+            knob_direction: getRefFromId(metadata, 'knobs', col.column_knob_direction_id) as 'C' | 'G' | 'D',
+            foam_type: getRefFromId(metadata, 'foams', col.column_foam_type_id) ?? '',
             body_count: col.column_body_count || 1,
             body_id: col.column_body_id || null
           }));
@@ -141,9 +141,6 @@ export function ConfigurationEditor() {
     isExistingConfig: boolean
   ) => {
     try {
-      setLoading(true);
-      setError(null);
-
       const basePayload = {
         configuration_name: step1Data.config_name.trim().toUpperCase(),
         is_catalog: step1Data.is_catalog
@@ -155,15 +152,14 @@ export function ConfigurationEditor() {
         const newConfigId = await createConfiguration(basePayload);
         setConfigId(newConfigId);
       }
-
+  
       setCurrentStep('dimensions');
     } catch (err) {
       console.error('Configuration update/init error:', err);
       throw new Error(err instanceof Error ? err.message : 'Erreur lors de la création. Veuillez réessayer.');
-    } finally {
-      setLoading(false);
     }
   }, [createConfiguration, handleUpdateDimensions]);
+  
   const handleBasicInfoNext = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -222,8 +218,8 @@ export function ConfigurationEditor() {
       design: '',
       finish: '',
       door: '',
-      two_way_opening: '',
-      knob_direction: '',
+      two_way_opening: 'C',
+      knob_direction: 'C',
       foam_type: '',
       body_count: 1
     });
@@ -270,33 +266,56 @@ export function ConfigurationEditor() {
     navigate('/');
   };
 
-  const steps = [
+  type StepStatus = 'current' | 'complete' | 'upcoming';
+
+  const steps: { name: string; description: string; status: StepStatus }[] = [
     {
       name: 'Informations de base',
       description: 'Nom et type de configuration',
-      status: currentStep === 'basic' ? 'current' : currentStep === 'dimensions' || currentStep === 'columns' || currentStep === 'volumes' || currentStep === 'corners' ? 'complete' : 'upcoming'
+      status:
+        currentStep === 'basic'
+          ? 'current'
+          : ['dimensions', 'columns', 'volumes', 'corners'].includes(currentStep)
+          ? 'complete'
+          : 'upcoming'
     },
     {
       name: 'Dimensions',
       description: 'Dimensions et description',
-      status: currentStep === 'dimensions' ? 'current' : currentStep === 'columns' || currentStep === 'volumes' || currentStep === 'corners' ? 'complete' : 'upcoming'
+      status:
+        currentStep === 'dimensions'
+          ? 'current'
+          : ['columns', 'volumes', 'corners'].includes(currentStep)
+          ? 'complete'
+          : 'upcoming'
     },
     {
       name: 'Colonnes',
       description: 'Configuration des colonnes',
-      status: currentStep === 'columns' ? 'current' : currentStep === 'volumes' || currentStep === 'corners' ? 'complete' : 'upcoming'
+      status:
+        currentStep === 'columns'
+          ? 'current'
+          : ['volumes', 'corners'].includes(currentStep)
+          ? 'complete'
+          : 'upcoming'
     },
     {
       name: 'Volumes',
       description: 'Visualisation des volumes',
-      status: currentStep === 'volumes' ? 'current' : currentStep === 'corners' ? 'complete' : 'upcoming'
+      status:
+        currentStep === 'volumes'
+          ? 'current'
+          : currentStep === 'corners'
+          ? 'complete'
+          : 'upcoming'
     },
     {
       name: 'Angles et Té',
       description: 'Configuration des angles',
       status: currentStep === 'corners' ? 'current' : 'upcoming'
     }
-  ] as const;
+  ];
+  
 
   const error = stateError || metadataError || configError || columnsError;
   const loading = stateLoading || metadataLoading || isLoadingConfig || isLoadingColumns;
@@ -316,7 +335,7 @@ export function ConfigurationEditor() {
             <ConfigurationHeader 
               title={id ? 'Modifier la Configuration' : 'Nouvelle Configuration'} 
               subtitle="Configurez votre produit étape par étape" 
-              configId={configId}
+              configId={configId ?? undefined}
               totalPrice={totalPrice}
             />
           </div>
@@ -342,8 +361,8 @@ export function ConfigurationEditor() {
               <BasicInfoStep
                 data={step1Data}
                 onChange={setStep1Data}
-                onNext={handleBasicInfoNext}
-                configId={configId}
+                onNext={() => handleBasicInfoNext(new Event('submit') as unknown as React.FormEvent)}
+                configId={configId ?? undefined}
                 isExistingConfig={Boolean(id)}
               />
             </ConfigurationContainer>
@@ -358,7 +377,7 @@ export function ConfigurationEditor() {
                 onBack={handleDimensionsBack}
                 loading={loading}
                 isExistingConfig={Boolean(id)}
-                configId={configId}
+                configId={configId ?? undefined}
               />
             </ConfigurationContainer>
           )}
@@ -367,7 +386,7 @@ export function ConfigurationEditor() {
             <ConfigurationContainer title="Configuration des colonnes" isLast>
               <ColumnsStep
                 columns={columns}
-                configId={id}
+                configId={id ?? null}
                 existingColumns={existingColumns}
                 onColumnsChange={setColumns}
                 columnData={columnData}
@@ -386,11 +405,11 @@ export function ConfigurationEditor() {
           {currentStep === 'volumes' && (
             <ConfigurationContainer title="Visualisation des volumes" isLast>
               <VolumesStep
-                configId={id}
+                configId={id ?? null}
                 onBack={handleVolumesBack}
                 onSave={handleVolumesSave}
                 isSaving={loading}
-                error={error}
+                error={error ?? undefined}
               />
             </ConfigurationContainer>
           )}
@@ -398,31 +417,15 @@ export function ConfigurationEditor() {
           {currentStep === 'corners' && (
             <ConfigurationContainer title="Angles et Té" isLast>
               <CornersStep
-                configId={id}
+                configId={id ?? null}
                 onBack={handleCornersBack}
                 onSave={handleCornersSave}
                 isSaving={loading}
-                error={error}
+                error={error ?? undefined}
               />
             </ConfigurationContainer>
           )}
 
-          <FloatingToolbox
-            context="editor"
-            data={{
-              state: {
-                step: currentStep,
-                configId: id,
-                formData: { step1Data, step2Data, columnData },
-                columns,
-                metadata
-              },
-              loading,
-              error
-            }}
-            debugTitle="Editor Debug"
-            apiTitle="IceCore API Console"
-          />
         </>
       )}
     </div>

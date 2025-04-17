@@ -1,16 +1,14 @@
 export interface ApiResponse<T = any> {
-  data: T;
+  data: T | null;
   error?: string;
   status: number;
 }
 
-// ─────────────────────────────────────────────
+// ──────────────────────────────
 // Structure d'une colonne dans l'interface
 export interface Column {
   id: string;
   position: number;
-
-  // Paramètres sélectionnés (refs)
   thickness: string;
   inner_height: string;
   inner_width: string;
@@ -21,15 +19,14 @@ export interface Column {
   two_way_opening?: string;
   knob_direction?: string;
   foam_type?: string;
-
   body_count?: number;
 }
 
-// ─────────────────────────────────────────────
-// Structure utilisée dans les formulaires de création/édition de colonnes
+// ──────────────────────────────
+// Structure utilisée pour les formulaires (création/édition colonne)
 export type Step2bisFormData = Partial<Omit<Column, 'id' | 'position'>>;
 
-// ─────────────────────────────────────────────
+// ──────────────────────────────
 // Représente un paramètre venant du backend
 export interface ParameterItem {
   id: number;
@@ -43,7 +40,7 @@ export interface ParameterItem {
   is_compatible_with?: Record<string, string[]>;
 }
 
-// ─────────────────────────────────────────────
+// ──────────────────────────────
 // Métadonnées complètes reçues du backend
 export interface StepMetadata {
   categories: string[];

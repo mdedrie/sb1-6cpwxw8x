@@ -83,3 +83,5 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
     </form>
   );
 };
+
+export const Step2bisForm = DimensionsStep;

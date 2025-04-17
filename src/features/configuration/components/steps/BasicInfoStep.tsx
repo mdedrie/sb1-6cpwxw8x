@@ -108,3 +108,5 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
     </form>
   );
 };
+
+export const Step1Form = BasicInfoStep;

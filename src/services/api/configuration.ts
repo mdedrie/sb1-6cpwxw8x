@@ -1,5 +1,13 @@
-import { handleResponse, handleFetchError, API_BASE_URL, DEFAULT_HEADERS, fetchWithTimeout, retryRequest, TIMEOUT } from './config';
-import type { ApiResponse } from './types';
+import {
+  handleResponse,
+  handleFetchError,
+  API_BASE_URL,
+  DEFAULT_HEADERS,
+  fetchWithTimeout,
+  retryRequest,
+  TIMEOUT
+} from './config';
+import type { ApiResponse } from './ApiController'; // utilise ton vrai chemin de ApiResponse
 
 interface ConfigurationCreate {
   configuration_name: string;
@@ -19,7 +27,7 @@ export const configurationApi = {
     try {
       const response = await retryRequest(() =>
         fetchWithTimeout(`${API_BASE_URL}/configurations/${id}`, {
-          headers: DEFAULT_HEADERS
+          headers: DEFAULT_HEADERS,
         })
       );
       return handleResponse(response);
@@ -29,16 +37,13 @@ export const configurationApi = {
   },
 
   // Initialize a new configuration
-  async initializeConfiguration(data: {
-    configuration_name: string;
-    is_catalog: boolean;
-  }): Promise<ApiResponse> {
+  async initializeConfiguration(data: ConfigurationCreate): Promise<ApiResponse> {
     try {
       const response = await retryRequest(() =>
         fetchWithTimeout(`${API_BASE_URL}/configurations/`, {
           method: 'POST',
           headers: DEFAULT_HEADERS,
-          body: JSON.stringify(data)
+          body: JSON.stringify(data),
         })
       );
       return handleResponse(response);
@@ -48,13 +53,13 @@ export const configurationApi = {
   },
 
   // Update an existing configuration
-  async updateConfiguration(id: string, data: any): Promise<ApiResponse> {
+  async updateConfiguration(id: string, data: Partial<ConfigurationCreate>): Promise<ApiResponse> {
     try {
       const response = await retryRequest(() =>
         fetchWithTimeout(`${API_BASE_URL}/configurations/${id}/`, {
           method: 'PUT',
           headers: DEFAULT_HEADERS,
-          body: JSON.stringify({ ...data, configuration_id: id })
+          body: JSON.stringify({ ...data, configuration_id: id }),
         }, TIMEOUT)
       );
       return handleResponse(response);
@@ -64,23 +69,26 @@ export const configurationApi = {
   },
 
   // Set dimensions for a configuration
-  async setDimensions(configId: string, data: {
-    configuration_name: string;
-    configuration_description: string;
-    configuration_outer_height: number;
-    configuration_outer_width: number;
-    configuration_outer_depth: number;
-    configuration_buy_price: number;
-    configuration_sell_price: number;
-    is_catalog: boolean;
-    user_id: string;
-  }): Promise<ApiResponse> {
+  async setDimensions(
+    configId: string,
+    data: {
+      configuration_name: string;
+      configuration_description: string;
+      configuration_outer_height: number;
+      configuration_outer_width: number;
+      configuration_outer_depth: number;
+      configuration_buy_price: number;
+      configuration_sell_price: number;
+      is_catalog: boolean;
+      user_id: string;
+    }
+  ): Promise<ApiResponse> {
     try {
       const response = await retryRequest(() =>
         fetchWithTimeout(`${API_BASE_URL}/configurations/${configId}`, {
           method: 'PUT',
           headers: DEFAULT_HEADERS,
-          body: JSON.stringify(data)
+          body: JSON.stringify(data),
         })
       );
       return handleResponse(response);

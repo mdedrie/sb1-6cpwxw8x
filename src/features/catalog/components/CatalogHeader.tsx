@@ -23,11 +23,14 @@ export const CatalogHeader: React.FC<CatalogHeaderProps> = ({
   isExporting = false,
   lastRefresh
 }) => {
-  const formattedTime = new Intl.DateTimeFormat('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  }).format(lastRefresh);
+  const formattedTime =
+    lastRefresh instanceof Date && !isNaN(lastRefresh.getTime())
+      ? new Intl.DateTimeFormat('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        }).format(lastRefresh)
+      : '--:--:--';
 
   return (
     <div className="md:flex md:items-center md:justify-between mb-8">

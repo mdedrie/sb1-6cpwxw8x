@@ -1,10 +1,9 @@
-import React, { FC, useState } from 'react';
+import { FC, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Library,
   LayoutGrid,
   PlusSquare,
-  Settings,
   ChevronRight,
   Star,
   History,

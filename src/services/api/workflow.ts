@@ -33,9 +33,12 @@ export const workflowApi = {
   async getColumns(configId: string): Promise<ApiResponse> {
     try {
       const response = await retryRequest(() =>
-        fetchWithTimeout(`${API_BASE_URL}/configuration_workflow/step2bis/columns/${configId}`, {
-          headers: DEFAULT_HEADERS
-        })
+        fetchWithTimeout(
+          `${API_BASE_URL}/configuration_workflow/step2bis/columns/${configId}`,
+          {
+            headers: DEFAULT_HEADERS
+          }
+        )
       );
       return handleResponse(response);
     } catch (err) {
@@ -49,18 +52,24 @@ export const workflowApi = {
   async getMetadata(filters?: string[]): Promise<ApiResponse> {
     try {
       const url = new URL(`${API_BASE_URL}/configuration_workflow/step_metadata`);
-
       if (filters?.length) {
         filters.forEach(filter => url.searchParams.append('filters', filter));
       }
 
-      const response = await retryRequest(() =>
-        fetchWithTimeout(url.toString(), {
-          headers: DEFAULT_HEADERS,
-          signal: AbortSignal.timeout(TIMEOUT)
-        })
-      );
+      // Only use AbortSignal.timeout if available (Node 18+, certains navigateurs). Sinon, fallback sans signal (le helper gère déjà un timeout interne)
+      const fetchOptions: RequestInit = {
+        headers: DEFAULT_HEADERS,
+      };
 
+      // @ts-ignore: AbortSignal.timeout peut ne pas exister selon l'environnement
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+        // @ts-ignore
+        fetchOptions.signal = AbortSignal.timeout(TIMEOUT);
+      }
+
+      const response = await retryRequest(() =>
+        fetchWithTimeout(url.toString(), fetchOptions, TIMEOUT)
+      );
       return handleResponse(response);
     } catch (err) {
       return handleFetchError(err);
@@ -90,13 +99,15 @@ export const workflowApi = {
   ): Promise<ApiResponse> {
     try {
       const response = await retryRequest(() =>
-        fetchWithTimeout(`${API_BASE_URL}/configuration_workflow/step2bis/add_column/${configId}`, {
-          method: 'POST',
-          headers: DEFAULT_HEADERS,
-          body: JSON.stringify(data)
-        })
+        fetchWithTimeout(
+          `${API_BASE_URL}/configuration_workflow/step2bis/add_column/${configId}`,
+          {
+            method: 'POST',
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify(data)
+          }
+        )
       );
-
       return handleResponse(response);
     } catch (err) {
       return handleFetchError(err);
@@ -106,14 +117,20 @@ export const workflowApi = {
   /**
    * Met à jour les dimensions d'une configuration (étape 2)
    */
-  async setDimensions(configId: string, data: SetDimensionsPayload): Promise<ApiResponse> {
+  async setDimensions(
+    configId: string,
+    data: SetDimensionsPayload
+  ): Promise<ApiResponse> {
     try {
       const response = await retryRequest(() =>
-        fetchWithTimeout(`${API_BASE_URL}/configuration_workflow/step2/set_dimensions/${configId}`, {
-          method: 'PUT',
-          headers: DEFAULT_HEADERS,
-          body: JSON.stringify(data)
-        })
+        fetchWithTimeout(
+          `${API_BASE_URL}/configuration_workflow/step2/set_dimensions/${configId}`,
+          {
+            method: 'PUT',
+            headers: DEFAULT_HEADERS,
+            body: JSON.stringify(data)
+          }
+        )
       );
       return handleResponse(response);
     } catch (err) {

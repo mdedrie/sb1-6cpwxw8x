@@ -116,6 +116,9 @@ export interface ParameterItem {
   dim?: number;
 }
 
+export type StepStatus = 'current' | 'complete' | 'upcoming';
+
+
 export interface Step1FormData {
   config_name: string;
   is_catalog: boolean;
@@ -170,6 +173,7 @@ export interface Shape {
     index: number;
     height: number;
     volume: number;
+    volume_id: string;
     addleft: boolean;
     y_start: number;
     addright: boolean;

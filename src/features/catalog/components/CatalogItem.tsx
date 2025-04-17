@@ -62,8 +62,10 @@ export const CatalogItem: React.FC<CatalogItemProps> = ({
           </h3>
 
           <p className="mt-1 text-sm text-gray-500">
-            {description === 'Aucune description' ? (
-              <span className="italic text-gray-400">{description}</span>
+            {description === 'Aucune description' || !description ? (
+              <span className="italic text-gray-400">
+                {description || 'Aucune description'}
+              </span>
             ) : (
               description
             )}
@@ -75,14 +77,17 @@ export const CatalogItem: React.FC<CatalogItemProps> = ({
               {formattedDate}
             </div>
 
-            {dimensions && (
-              <div className="flex items-center text-sm text-gray-600 font-medium">
-                <Box className="h-4 w-4 mr-1 flex-shrink-0" />
-                {dimensions.outer_height}m × {dimensions.outer_width}m × {dimensions.outer_depth}m
-              </div>
-            )}
+            {dimensions &&
+              dimensions.outer_height !== undefined &&
+              dimensions.outer_width !== undefined &&
+              dimensions.outer_depth !== undefined && (
+                <div className="flex items-center text-sm text-gray-600 font-medium">
+                  <Box className="h-4 w-4 mr-1 flex-shrink-0" />
+                  {dimensions.outer_height}m × {dimensions.outer_width}m × {dimensions.outer_depth}m
+                </div>
+              )}
 
-            {sell_price !== null && (
+            {sell_price !== null && sell_price !== undefined && (
               <div className="flex items-center text-sm font-medium text-indigo-600">
                 {sell_price.toLocaleString('fr-FR')} €
               </div>
@@ -106,7 +111,7 @@ export const CatalogItem: React.FC<CatalogItemProps> = ({
             onClick={() => onDelete(safeId, safeName)}
             className="flex items-center text-red-600 hover:text-red-700 hover:bg-red-50"
             aria-label={`Supprimer la configuration ${safeName}`}
-            disabled={!id || !name}
+            disabled={!id}
           >
             Supprimer
           </Button>

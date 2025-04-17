@@ -1,4 +1,9 @@
-import type { ApiResponse } from './ApiController'; // ou le chemin réel du fichier
+// src/services/api/config.ts
+
+import type { ApiResponse } from './ApiController'; // Adapter le chemin si besoin
+
+// === Paramètres globaux d'API =============
+
 export const API_BASE_URL = 'https://icecoreapi-production.up.railway.app/api';
 
 export const DEFAULT_HEADERS = {
@@ -8,14 +13,19 @@ export const DEFAULT_HEADERS = {
   'Pragma': 'no-cache',
 };
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
 export const TIMEOUT = 60000;
-const BACKOFF_FACTOR = 1.5;
 
-export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = TIMEOUT): Promise<Response> {
+// === Helper: fetch avec timeout =============
+
+export async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout: number = TIMEOUT
+): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
+
+  // Merge headers intelligemment
   const headers = {
     ...DEFAULT_HEADERS,
     ...(options.headers || {})
@@ -33,56 +43,36 @@ export async function fetchWithTimeout(url: string, options: RequestInit = {}, t
     return response;
   } catch (error) {
     clearTimeout(id);
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        throw new Error('La requête a expiré. Veuillez vérifier votre connexion et réessayer.');
-      }
-      if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        // Add more specific error handling for network issues
-        const isSSL = url.startsWith('https://');
-        if (!isSSL) {
-          throw new Error('La connexion sécurisée a échoué. Veuillez utiliser HTTPS.');
-        }
-        throw new Error('Impossible de contacter le serveur. Veuillez vérifier que vous êtes connecté à Internet et que le serveur est accessible.');
-      }
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('La requête a expiré. Veuillez vérifier votre connexion et réessayer.');
     }
     throw error;
   }
 }
 
+// === Helper: retry de requête HTTP =========
+
 export async function retryRequest(
   fn: () => Promise<Response>,
-  retries = MAX_RETRIES,
-  attempt = 1
+  retries: number = 3,
+  attempt: number = 1
 ): Promise<Response> {
   try {
     const response = await fn();
-    
-    // Check for CORS issues
+
+    // Erreur réseau/CORS : statut 0
     if (response.status === 0) {
       throw new Error('CORS Error: The server is not allowing requests from this origin');
     }
-    
-    if (!response.ok && retries > 0) {
-      const errorText = await response.text();
-      console.error(`HTTP error! status: ${response.status}, body:`, errorText);
+
+    // Retry uniquement sur réseau/5xx/timeout, pas sur 4xx (hors 422/429 si voulu)
+    if (!response.ok && retries > 0 && response.status >= 500) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     return response;
   } catch (err) {
     if (retries > 0) {
-      const delay = RETRY_DELAY * Math.pow(BACKOFF_FACTOR, attempt - 1);
-      console.warn(`Request failed, retrying in ${delay}ms... (${retries} attempts left)`);
-
-      if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('Request timed out, increasing timeout for retry');
-        return retryRequest(
-          () => fetchWithTimeout(fn.toString(), {}, TIMEOUT * 2),
-          retries - 1,
-          attempt + 1
-        );
-      }
-
+      const delay = 2000 * Math.pow(1.5, attempt - 1);
       await new Promise(resolve => setTimeout(resolve, delay));
       return retryRequest(fn, retries - 1, attempt + 1);
     }
@@ -90,9 +80,11 @@ export async function retryRequest(
   }
 }
 
+// === Helper: parse une réponse HTTP serveur vers ApiResponse<T> ==========
+
 export async function handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
   const status = response.status;
-  
+
   if (status === 0) {
     return {
       data: null as T,
@@ -106,19 +98,17 @@ export async function handleResponse<T>(response: Response): Promise<ApiResponse
     try {
       const data = await response.json();
       if (status === 422) {
-        error = Array.isArray(data.detail) 
+        error = Array.isArray(data.detail)
           ? data.detail.map((d: { msg: string }) => d.msg).join(', ')
           : data.detail || 'Données invalides';
-      }
-      
-      if (status === 500) {
+      } else if (status === 500) {
         error = 'Erreur serveur interne. Veuillez réessayer dans quelques instants.';
-      }
-      if (status === 404) {
+      } else if (status === 404) {
         error = 'La ressource demandée n\'existe pas.';
-      }
-      if (status === 403) {
+      } else if (status === 403) {
         error = 'Accès non autorisé. Veuillez vous reconnecter.';
+      } else if (data?.message) {
+        error = data.message;
       }
     } catch (e) {
       error = response.statusText || `Erreur ${status}: La requête n'a pas pu aboutir`;
@@ -132,7 +122,7 @@ export async function handleResponse<T>(response: Response): Promise<ApiResponse
   } catch (err) {
     return {
       data: null as T,
-      error: err instanceof Error 
+      error: err instanceof Error
         ? 'Erreur lors du traitement de la réponse du serveur: ' + err.message
         : 'Erreur inattendue lors du traitement de la réponse',
       status
@@ -140,11 +130,13 @@ export async function handleResponse<T>(response: Response): Promise<ApiResponse
   }
 }
 
+// === Helper: standardise les erreurs JS/fetch ===
+
 export async function handleFetchError(err: unknown): Promise<ApiResponse> {
   console.error('API request failed:', err);
-  
+
   let errorMessage = 'Une erreur inattendue est survenue lors de la communication avec le serveur';
-  
+
   if (err instanceof Error) {
     if (err.name === 'AbortError') {
       errorMessage = 'La requête a expiré. Veuillez vérifier votre connexion et réessayer.';
@@ -158,7 +150,7 @@ export async function handleFetchError(err: unknown): Promise<ApiResponse> {
       errorMessage = err.message;
     }
   }
-  
+
   return {
     data: null,
     error: errorMessage,

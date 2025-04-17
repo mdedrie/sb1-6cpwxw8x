@@ -53,17 +53,15 @@ export function useCompatibility({
   currentValue,
   debugOption
 }: UseCompatibilityProps) {
-  const columnValuesWithDefaults = useMemo(() => {
-    return columnValues ? { ...columnValues } : undefined;
-  }, [columnValues]);
+  // Mémoïsation du snapshot de valeurs colonne, pour éviter toute mutation sauvage
+  const columnValuesWithDefaults = useMemo(() => (columnValues ? { ...columnValues } : undefined), [columnValues]);
 
-  const filteredOptions = useMemo(() => {
+  // Options filtrées selon compatibilités
+  const filteredOptions = useMemo<ParameterItem[] | undefined>(() => {
     if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !isCheckable(parameterType)) {
       return options;
     }
-
     const normCurrentType = normalizeParameterType(parameterType);
-
     return options.filter((option) => {
       if (option.ref === currentValue) return true;
 
@@ -74,11 +72,12 @@ export function useCompatibility({
         const direct = metadata.incompatibilities_by_ref[option.ref]?.[normKey]?.includes(val);
         const reverse = metadata.incompatibilities_by_ref[val]?.[normCurrentType]?.includes(option.ref);
 
-        return direct || reverse;
+        return !!(direct || reverse);
       });
     });
   }, [metadata, columnValuesWithDefaults, parameterType, options, currentValue]);
 
+  // Mapping option.ref ⇒ raison possible d'incompatibilité
   const incompatibilityReasons = useMemo(() => {
     if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !isCheckable(parameterType)) {
       return null;
@@ -109,7 +108,8 @@ export function useCompatibility({
     return reasons;
   }, [metadata, columnValuesWithDefaults, parameterType, options]);
 
-  const incompatibilityDebug = useMemo(() => {
+  // Permet le debug exhaustif des règles appliquées pour une option
+  const incompatibilityDebug = useMemo<IncompatibilityDebug[]>(() => {
     if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !debugOption) {
       return [];
     }
@@ -148,6 +148,7 @@ export function useCompatibility({
     return debug;
   }, [metadata, columnValuesWithDefaults, parameterType, options, debugOption]);
 
+  // Pour l'UI : nombre d'options non affichées car incompatibles
   const incompatibleCount = useMemo(() => {
     return options && filteredOptions ? options.length - filteredOptions.length : 0;
   }, [options, filteredOptions]);

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Copy, Check, X, Clock, AlertCircle, Search, ExternalLink, Download, Share2, Bookmark, Zap, Trash2 } from 'lucide-react';
 
 interface ApiRequest {
   method: string;
@@ -26,20 +25,10 @@ interface ApiLog {
 
 interface ApiConsoleProps {
   title?: string;
-  initiallyOpen?: boolean;
-  position?: 'bottom-right' | 'bottom-left';
+  position?: string;
   maxHeight?: string;
-  itemsPerPage?: number;
 }
 
-interface SavedRequest {
-  id: string;
-  name: string;
-  request: ApiRequest;
-  createdAt: Date;
-}
-
-// Hook pour journaliser les requêtes
 export function useApiLogger(enabled = true) {
   const [logs, setLogs] = useState<ApiLog[]>([]);
 
@@ -103,3 +92,18 @@ export function useApiLogger(enabled = true) {
 
   return logs;
 }
+
+export const ApiConsole: React.FC<ApiConsoleProps> = ({
+  title,
+  position,
+  maxHeight
+}) => {
+  return (
+    <div className="text-sm text-gray-600 p-4 border rounded">
+      Console API activée — les appels sont interceptés et enregistrés.
+      {title && <div className="font-bold mt-2">Titre : {title}</div>}
+      {position && <div>Position : {position}</div>}
+      {maxHeight && <div>Max height : {maxHeight}</div>}
+    </div>
+  );
+};

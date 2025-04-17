@@ -1,42 +1,53 @@
-import { useState, useCallback } from 'react';
-import type { ModelingData } from '../../../types';
+import { useMemo } from 'react';
 
-interface UseVolumeVisualizationProps {
-  data: ModelingData | null;
-  onVolumeSelect: (groupId: number, temperature: 'positive' | 'negative') => void;
+type Temperature = 'positive' | 'negative' | undefined;
+
+interface VolumeStylesConfig {
+  isHovered: boolean;
+  temperature?: Temperature;
 }
 
-export function useVolumeVisualization({ data, onVolumeSelect }: UseVolumeVisualizationProps) {
-  const [hoveredPart, setHoveredPart] = useState<number | null>(null);
+interface VolumeColors {
+  fill: string;
+  border: string;
+  icon: string;
+  hoverFill: string;
+}
 
-  const handleVolumeSelect = useCallback((groupId: number, temperature: 'positive' | 'negative') => {
-    onVolumeSelect(groupId, temperature);
-  }, [onVolumeSelect]);
+export function useVolumeStyles() {
+  const COLORS: Record<'positive' | 'negative' | 'undefined' | 'hover', VolumeColors | { fill: string; border: string; icon?: string; hoverFill?: string; }> = useMemo(() => ({
+    positive: { fill: '#ECFDF5', border: '#10B981', icon: '🔥', hoverFill: '#D1FAE5' },
+    negative: { fill: '#EFF6FF', border: '#3B82F6', icon: '❄️', hoverFill: '#DBEAFE' },
+    undefined: { fill: '#F9FAFB', border: '#E5E7EB', icon: '❓', hoverFill: '#F3F4F6' },
+    hover: { fill: '#F3F4F6', border: '#4B5563' }
+  }), []);
 
-  const getTotalDimensions = useCallback(() => {
-    if (!data?.shapes) return { width: 0, height: 0 };
+  const CONSTANTS = useMemo(() => ({
+    PADDING: 40,
+    GAP: 16,
+    SCALE: 105,
+    MIN_WIDTH: 120,
+    CORNER_RADIUS: 4,
+    STROKE_WIDTH: 1.5,
+  }), []);
 
-    const PADDING = 40;
-    const GAP = 16;
-    const SCALE = 105;
-    const MIN_WIDTH = 120;
+  const getVolumeStyles = ({ isHovered, temperature }: VolumeStylesConfig) => {
+    // Typescript safe
+    const colors = COLORS[temperature ?? 'undefined'];
+    const fillColor = isHovered
+      ? (colors.hoverFill || COLORS.hover.fill)
+      : colors.fill;
+    const strokeColor = isHovered
+      ? COLORS.hover.border
+      : colors.border;
+    const icon = colors.icon ?? '';
 
-    const totalWidth = data.shapes.reduce((acc, shape, i) => {
-      const width = Math.max(shape.inner_dimensions.width * SCALE, MIN_WIDTH);
-      return acc + width + (i < data.shapes.length - 1 ? GAP : 0);
-    }, PADDING * 2);
-
-    const maxHeight = Math.max(
-      ...data.shapes.map(shape => shape.inner_dimensions.height * SCALE)
-    ) + PADDING * 2;
-
-    return { width: totalWidth, height: maxHeight };
-  }, [data]);
+    return { fillColor, strokeColor, icon };
+  };
 
   return {
-    hoveredPart,
-    setHoveredPart,
-    handleVolumeSelect,
-    getTotalDimensions
+    COLORS,
+    CONSTANTS,
+    getVolumeStyles,
   };
 }

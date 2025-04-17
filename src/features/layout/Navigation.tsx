@@ -1,4 +1,4 @@
-import React, { FC, useState, useRef, useEffect } from 'react';
+import { FC, useState, useRef, useEffect } from 'react';
 import {
   Menu,
   Settings,
@@ -146,16 +146,13 @@ export const Navigation: FC<NavigationProps> = ({ onToggleSidebar }) => {
       {/* Panneau de recherche */}
       {showSearch && (
         <div className="absolute top-16 left-0 w-full bg-white shadow-md p-4 z-40">
-          <FormField>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher..."
-              aria-label="Rechercher"
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-          </FormField>
+          <FormField
+            label="Rechercher"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+            placeholder="Rechercher..."
+            required
+          />
         </div>
       )}
 
@@ -178,14 +175,18 @@ export const Navigation: FC<NavigationProps> = ({ onToggleSidebar }) => {
 
       {/* Modal pour le signalement d'un bug */}
       {showBugReport && (
-        <Modal onClose={() => setShowBugReport(false)} title="Signaler un bug">
-          <FormField label="Description du bug">
-            <textarea
-              className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              rows={4}
-              placeholder="Décrivez le problème rencontré"
-            />
-          </FormField>
+        <Modal
+          isOpen={showBugReport}
+          onClose={() => setShowBugReport(false)}
+          title="Signaler un bug"
+        >
+          <FormField
+            label="Description du bug"
+            textarea
+            rows={4}
+            placeholder="Décrivez le problème rencontré"
+            required
+          />
           <div className="mt-4 flex justify-end space-x-2">
             <Button variant="secondary" onClick={() => setShowBugReport(false)}>
               Annuler

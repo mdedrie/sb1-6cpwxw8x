@@ -1,93 +1,88 @@
-import React, { useCallback, useEffect, useState } from 'react';
+// src/pages/ConfigurationEditor.tsx
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  AlertCircle,
-  Save,
-  ArrowLeft,
-  ArrowRight,
-  Loader2,
-  Info,
-  X,
-  DollarSign,
-  Box as Box3d,
-  Ruler
-} from 'lucide-react';
-
-import { Button } from '../../../components/ui';
 import {
   ConfigurationHeader,
   ConfigurationSteps,
-  Step1Form,
-  Step2bisForm,
-  ConfigurationSummary
 } from '../components';
-import type { Step1FormData, Column, StepMetadata } from '../../../types';
+import { Step1Form } from '../components/steps/BasicInfoStep';
+import { DimensionsStep } from '../components/steps/DimensionsStep';
+import { Step2bisForm  } from '../components/steps/ColumnsStep';
+import { VolumesStep } from '../components/steps/VolumesStep';
 import { useConfigurationsApi, useEditorApi } from '../../../services/api/hooks';
+import type { Step1FormData, Column, StepMetadata } from '../../../types';
 
-type Step = 'basic' | 'dimensions' | 'summary';
+// Step type
+const stepOrder = ['basic', 'dimensions', 'summary'] as const;
+type Step = typeof stepOrder[number];
 
 export const ConfigurationEditor: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams();
-  const configIdFromParams = params.id;
 
   const [currentStep, setCurrentStep] = useState<Step>('basic');
-  const [step1Data, setStep1Data] = useState<Step1FormData>({
-    config_name: '',
-    is_catalog: false
-  });
-
+  const [step1Data, setStep1Data] = useState<Step1FormData>({ config_name: '', is_catalog: false });
   const [columns, setColumns] = useState<Column[]>([]);
   const [metadata, setMetadata] = useState<StepMetadata | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
 
-  const { createConfiguration } = useConfigurationsApi();
+  const { createConfiguration, updateConfiguration } = useConfigurationsApi();
   const { getConfiguration } = useEditorApi();
 
-  // Chargement initial si ID dans l’URL
+  // Initial load from URL param
   useEffect(() => {
-    if (configIdFromParams) {
-      setConfigId(configIdFromParams);
-      // TODO: appel à getConfiguration(configIdFromParams) si besoin
+    if (params.id && params.id !== configId) {
+      setConfigId(params.id);
+      // Possibilité de charger la configuration ici avec getConfiguration(params.id)
     }
-  }, [configIdFromParams]);
+  }, [params.id, configId]);
 
-  const handleBasicInfoSubmit = useCallback(
-    async (step1Data: Step1FormData, isExistingConfig: boolean) => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const basePayload = {
-          configuration_name: step1Data.config_name.trim().toUpperCase(),
-          is_catalog: step1Data.is_catalog
-        };
-
-        if (!isExistingConfig) {
-          const newConfigId = await createConfiguration(basePayload);
-          setConfigId(newConfigId);
-        }
-
-        setStep1Data(step1Data);
-        setCurrentStep('dimensions');
-      } catch (err) {
-        console.error('Erreur lors de l’initialisation de la configuration :', err);
-        setError(err instanceof Error ? err.message : 'Erreur inconnue');
-      } finally {
-        setLoading(false);
-      }
-    },
-    [createConfiguration]
-  );
-
+  // Handle step change via click
   const handleStepChange = (index: number) => {
-    const steps: Step[] = ['basic', 'dimensions', 'summary'];
-    setCurrentStep(steps[index]);
+    setCurrentStep(stepOrder[index]);
   };
+
+  // Submit Basic Info
+  const handleBasicInfoSubmit = useCallback(async (step1: Step1FormData) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const payload = {
+        configuration_name: step1.config_name.trim().toUpperCase(),
+        is_catalog: step1.is_catalog
+      };
+
+      let newConfigId = configId;
+
+      if (!params.id) {
+        newConfigId = await createConfiguration(payload);
+        setConfigId(newConfigId);
+        navigate(`/editor/${newConfigId}`, { replace: true });
+      } else {
+        await updateConfiguration(params.id, payload);
+      }
+
+      setStep1Data(step1);
+      setCurrentStep('dimensions');
+    } catch (err) {
+      console.error('Erreur création/mise à jour :', err);
+      setError(err instanceof Error ? err.message : 'Erreur inconnue');
+    } finally {
+      setLoading(false);
+    }
+  }, [params.id, configId, createConfiguration, updateConfiguration, navigate]);
+
+  const steps: { name: string; description: string; status: 'current' | 'complete' | 'upcoming' }[] =
+  stepOrder.map((step, i) => ({
+    name: ['Infos', 'Colonnes', 'Résumé'][i],
+    description: ['Nom + mode catalogue', 'Dimensions & design', 'Validation finale'][i],
+    status: step === currentStep ? 'current' : stepOrder.indexOf(currentStep) > i ? 'complete' : 'upcoming'
+  }));
+
 
   return (
     <div className="p-4">
@@ -98,21 +93,14 @@ export const ConfigurationEditor: React.FC = () => {
         totalPrice={0}
       />
 
-      <ConfigurationSteps
-        steps={[
-          { name: 'Infos', description: 'Nom + mode catalogue', status: currentStep === 'basic' ? 'current' : 'complete' },
-          { name: 'Colonnes', description: 'Dimensions & design', status: currentStep === 'dimensions' ? 'current' : currentStep === 'summary' ? 'complete' : 'upcoming' },
-          { name: 'Résumé', description: 'Validation finale', status: currentStep === 'summary' ? 'current' : 'upcoming' }
-        ]}
-        onStepClick={handleStepChange}
-      />
+      <ConfigurationSteps steps={steps} onStepClick={handleStepChange} />
 
       {currentStep === 'basic' && (
         <Step1Form
-          defaultValues={step1Data}
-          onSubmit={handleBasicInfoSubmit}
-          loading={loading}
-        />
+        data={step1Data}
+        onChange={setStep1Data}
+        onNext={() => handleBasicInfoSubmit(step1Data)}
+      />
       )}
 
       {currentStep === 'dimensions' && (
@@ -126,13 +114,11 @@ export const ConfigurationEditor: React.FC = () => {
       )}
 
       {currentStep === 'summary' && (
-        <ConfigurationSummary
-          configId={configId}
-          step1Data={step1Data}
-          columns={columns}
-          onBack={() => setCurrentStep('dimensions')}
-        />
+        <div className="mt-6">
+          <p className="text-gray-600 text-sm">Récapitulatif à venir...</p>
+        </div>
       )}
+
     </div>
   );
 };
