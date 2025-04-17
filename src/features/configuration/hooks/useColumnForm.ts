@@ -19,21 +19,14 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
   const [columnData, setColumnData] = useState<Step2bisFormData>({ ...emptyColumnData });
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Mémorisation pour best-practices si utilisé comme callback descendant :
   const resetForm = useCallback(() => {
     setColumnData({ ...emptyColumnData });
     setEditingColumn(null);
     setFormError(null);
   }, []);
 
-  // Permet un feedback plus précis si besoin
   const validateColumnData = useCallback((): boolean => {
-    const requiredFields: (keyof Step2bisFormData)[] = [
-      'thickness',
-      'inner_height',
-      'design',
-      'door',
-    ];
+    const requiredFields: (keyof Step2bisFormData)[] = ['thickness', 'inner_height', 'design', 'door'];
     for (const field of requiredFields) {
       if (!columnData[field]) {
         setFormError('Tous les champs obligatoires ne sont pas remplis.');
@@ -46,24 +39,20 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
 
   const handleAddColumn = useCallback((columns: Column[]) => {
     if (!validateColumnData()) return;
-
     const newColumn: Column = {
       id: crypto.randomUUID(),
       ...columnData,
-      position: columns.length + 1
+      position: columns.length + 1,
     };
-
     onColumnsChange([...columns, newColumn]);
     resetForm();
   }, [columnData, onColumnsChange, resetForm, validateColumnData]);
 
   const handleUpdateColumn = useCallback((columns: Column[]) => {
     if (!editingColumn) return;
-
-    const updatedColumns = columns.map((col) =>
-      col.id === editingColumn.id ? { ...col, ...columnData } : col
-    ).map((col, idx) => ({ ...col, position: idx + 1 }));
-
+    const updatedColumns = columns
+      .map((col) => (col.id === editingColumn.id ? { ...col, ...columnData } : col))
+      .map((col, idx) => ({ ...col, position: idx + 1 }));
     onColumnsChange(updatedColumns);
     resetForm();
   }, [editingColumn, columnData, onColumnsChange, resetForm]);
@@ -72,7 +61,6 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
     const updatedColumns = columns
       .filter(col => col.id !== id)
       .map((col, idx) => ({ ...col, position: idx + 1 }));
-
     onColumnsChange(updatedColumns);
     if (editingColumn?.id === id) resetForm();
   }, [onColumnsChange, editingColumn, resetForm]);
@@ -83,7 +71,6 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
       id: crypto.randomUUID(),
       position: columns.length + 1
     };
-
     onColumnsChange([...columns, newColumn]);
   }, [onColumnsChange]);
 

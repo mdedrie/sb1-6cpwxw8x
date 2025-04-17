@@ -5,7 +5,6 @@ import type { StepMetadata, Column } from '../../../types';
 interface UseWorkflowApiReturn {
   getMetadata: (filters?: string[]) => Promise<StepMetadata>;
   addColumn: (configId: string, columnData: Record<string, any>) => Promise<void>;
-  updateColumn: (configId: string, columnId: string, columnData: Record<string, any>) => Promise<void>;
   getColumns: (configId: string) => Promise<Column[]>;
   isLoading: boolean;
   error: string | null;
@@ -38,8 +37,9 @@ export function useWorkflowApi(): UseWorkflowApiReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [api.baseUrl]);
 
+  // POST utilisé pour add ET update (le backend upserte)
   const addColumn = useCallback(async (configId: string, columnData: Record<string, any>): Promise<void> => {
     setIsLoading(true);
     setError(null);
@@ -52,7 +52,7 @@ export function useWorkflowApi(): UseWorkflowApiReturn {
     } catch (err) {
       const message = err instanceof ApiError
         ? err.message
-        : "Erreur lors de l'ajout de la colonne";
+        : "Erreur lors de l'ajout ou modification de la colonne";
       setError(message);
       throw new Error(message);
     } finally {
@@ -80,30 +80,9 @@ export function useWorkflowApi(): UseWorkflowApiReturn {
     }
   }, []);
 
-  const updateColumn = useCallback(async (configId: string, columnId: string, columnData: Record<string, any>): Promise<void> => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { error } = await api.put(
-        `/configuration_workflow/step2bis/update_column/${configId}/${columnId}`,
-        columnData
-      );
-      if (error) throw new ApiError(error, 0);
-    } catch (err) {
-      const message = err instanceof ApiError
-        ? err.message
-        : 'Erreur lors de la mise à jour de la colonne';
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
   return {
     getMetadata,
     addColumn,
-    updateColumn,
     getColumns,
     isLoading,
     error,

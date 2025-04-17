@@ -147,7 +147,7 @@ export interface Step2bisFormData {
 
 export interface ModelingData {
   shapes: Shape[];
-  selectedVolumes?: Record<number, 'plus' | 'minus'>;
+  selectedVolumes?: Record<number, 'positive' | 'negative'>;
 }
 
 export interface ShapeParameter {

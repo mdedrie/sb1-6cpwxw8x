@@ -9,7 +9,7 @@ const RESTRICTED_LAST_POSITION = ['0', 'Fl', '1l'];
 interface ExistingColumn {
   column_order: number;
   column_body_count?: number;
-  [key: string]: any; // Typage plus précis à faire selon backend
+  [key: string]: any;
 }
 
 interface UseColumnActionsProps {
@@ -28,9 +28,10 @@ export function useColumnActions({
 }: UseColumnActionsProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const { addColumn, updateColumn } = useWorkflowApi();
+  const { addColumn } = useWorkflowApi(); // 
 
-  // --- Vérifie la position de la colonne
+  // ... validateColumnPosition, compareColumns, validateAllPositions inchangés
+
   const validateColumnPosition = useCallback((column: Column, columns: Column[]): string | null => {
     const isFirstPosition = column.position === 1;
     const isLastPosition = column.position === columns.length;
@@ -45,10 +46,8 @@ export function useColumnActions({
     return null;
   }, []);
 
-  // --- Compare colonne backend/colonne UI courante
   const compareColumns = useCallback((newColumn: Column, existingColumn: ExistingColumn): boolean => {
     if (!metadata) return false;
-
     const parameterCategories = {
       thickness: 'thicknesses',
       inner_height: 'inner_heights',
@@ -61,10 +60,8 @@ export function useColumnActions({
       knob_direction: 'knobs',
       foam_type: 'foams'
     } as const;
-
     if (newColumn.position !== existingColumn.column_order) return false;
     if ((newColumn.body_count || 1) !== existingColumn.column_body_count) return false;
-
     for (const [field, category] of Object.entries(parameterCategories)) {
       const newValue = newColumn[field as keyof Column];
       if (!newValue) continue;
@@ -76,7 +73,6 @@ export function useColumnActions({
     return true;
   }, [metadata]);
 
-  // --- Validation globale
   const validateAllPositions = useCallback((columns: Column[]): string | null => {
     for (const column of columns) {
       const err = validateColumnPosition(column, columns);
@@ -85,19 +81,16 @@ export function useColumnActions({
     return null;
   }, [validateColumnPosition]);
 
-  // --- Enregistrement des colonnes
   const handleSaveColumns = useCallback(async () => {
     if (!configId) {
       setError('ID de configuration manquant');
       return false;
     }
-
     const positionError = validateAllPositions(columns);
     if (positionError) {
       setError(positionError);
       return false;
     }
-
     const sortedExistingColumns = [...existingColumns].sort((a, b) => a.column_order - b.column_order);
     const hasChanges = columns.some((col, idx) => {
       const existingColumn = sortedExistingColumns[idx];
@@ -146,15 +139,11 @@ export function useColumnActions({
           configuration_id: configId
         };
 
-        if (column.id) {
-          await updateColumn(configId, column.id, columnData);
-        } else {
-          await addColumn(configId, columnData);
-        }
+        // 🔥 Unifié : toujours addColumn (le back gère create/update)
+        await addColumn(configId, columnData);
 
         await new Promise(resolve => setTimeout(resolve, 500));
       }
-
       return true;
     } catch (err) {
       console.error('Error saving columns:', err);
@@ -168,7 +157,6 @@ export function useColumnActions({
     columns,
     metadata,
     addColumn,
-    updateColumn,
     existingColumns,
     compareColumns,
     validateAllPositions,
