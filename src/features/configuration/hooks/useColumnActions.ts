@@ -6,17 +6,23 @@ import { getIdFromRef } from '../../../utils/parameters';
 const RESTRICTED_FIRST_POSITION = ['0', 'Fr', '1r'];
 const RESTRICTED_LAST_POSITION = ['0', 'Fl', '1l'];
 
+interface ExistingColumn {
+  column_order: number;
+  column_body_count?: number;
+  [key: string]: any; // Typage plus précis à faire selon backend
+}
+
 interface UseColumnActionsProps {
   columns: Column[];
   onColumnsChange: (columns: Column[]) => void;
   configId: string | null;
   metadata: StepMetadata | null;
-  existingColumns?: any[];
+  existingColumns?: ExistingColumn[];
 }
 
-export function useColumnActions({ 
-  columns, 
-  configId, 
+export function useColumnActions({
+  columns,
+  configId,
   metadata,
   existingColumns = []
 }: UseColumnActionsProps) {
@@ -24,6 +30,7 @@ export function useColumnActions({
   const [isSaving, setIsSaving] = useState(false);
   const { addColumn, updateColumn } = useWorkflowApi();
 
+  // --- Vérifie la position de la colonne
   const validateColumnPosition = useCallback((column: Column, columns: Column[]): string | null => {
     const isFirstPosition = column.position === 1;
     const isLastPosition = column.position === columns.length;
@@ -38,7 +45,8 @@ export function useColumnActions({
     return null;
   }, []);
 
-  const compareColumns = useCallback((newColumn: Column, existingColumn: any): boolean => {
+  // --- Compare colonne backend/colonne UI courante
+  const compareColumns = useCallback((newColumn: Column, existingColumn: ExistingColumn): boolean => {
     if (!metadata) return false;
 
     const parameterCategories = {
@@ -65,18 +73,19 @@ export function useColumnActions({
       const newId = getIdFromRef(metadata, category, newValue as string);
       if (existingId !== newId) return false;
     }
-
     return true;
   }, [metadata]);
 
+  // --- Validation globale
   const validateAllPositions = useCallback((columns: Column[]): string | null => {
     for (const column of columns) {
-      const error = validateColumnPosition(column, columns);
-      if (error) return error;
+      const err = validateColumnPosition(column, columns);
+      if (err) return err;
     }
     return null;
   }, [validateColumnPosition]);
 
+  // --- Enregistrement des colonnes
   const handleSaveColumns = useCallback(async () => {
     if (!configId) {
       setError('ID de configuration manquant');
@@ -90,11 +99,10 @@ export function useColumnActions({
     }
 
     const sortedExistingColumns = [...existingColumns].sort((a, b) => a.column_order - b.column_order);
-    const hasChanges = columns.some((col, index) => {
-      const existingColumn = sortedExistingColumns[index];
+    const hasChanges = columns.some((col, idx) => {
+      const existingColumn = sortedExistingColumns[idx];
       return !existingColumn || !compareColumns(col, existingColumn);
     });
-
     if (!hasChanges) {
       console.log('No changes detected in columns, skipping save');
       return true;
@@ -150,12 +158,21 @@ export function useColumnActions({
       return true;
     } catch (err) {
       console.error('Error saving columns:', err);
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de l\'enregistrement');
+      setError(err instanceof Error ? err.message : "Une erreur est survenue lors de l'enregistrement");
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [configId, columns, metadata, addColumn, updateColumn, existingColumns, compareColumns, validateAllPositions]);
+  }, [
+    configId,
+    columns,
+    metadata,
+    addColumn,
+    updateColumn,
+    existingColumns,
+    compareColumns,
+    validateAllPositions,
+  ]);
 
   return {
     error,
