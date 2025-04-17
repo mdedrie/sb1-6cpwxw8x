@@ -1,162 +1,205 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { ModelingData } from '../../../../types';
+import type { ModelingData, Temperature } from '../../../../types';
 
 interface VolumeTemperatureTableProps {
   data: ModelingData | null;
+  selectedVolumes: Record<string | number, Temperature>;
+  onVolumeSelect?: (mergeGroupId: string | number, value: Temperature) => void;
 }
 
-interface GroupVolume {
-  groupId: number;
-  columnIndex: number;
-  volume: number;
-  temperature?: 'positive' | 'negative';
-}
+export const VolumeTemperatureTable: React.FC<VolumeTemperatureTableProps> = ({
+  data,
+  selectedVolumes,
+  onVolumeSelect,
+}) => {
+  const [showVolumes, setShowVolumes] = useState(false);
 
-export const VolumeTemperatureTable: React.FC<VolumeTemperatureTableProps> = ({ data }) => {
-  const [showGroups, setShowGroups] = React.useState(false);
-
-  if (!data?.shapes) return null;
-  
-  // Merge and calculate volumes by group
-  const mergedGroups = data.shapes.reduce((acc, shape) => {
-    shape.parts.forEach(part => {
-      const groupId = part.merge_group_id;
-      if (!acc[groupId]) {
-        acc[groupId] = {
-          groupId,
-          volume: 0,
-          temperature: data.selectedVolumes?.[groupId],
-          columns: new Set<number>()
-        };
+  // Toujours appeler TES HOOKS, puis gestion fallback ci-dessous seulement au render !
+  const mergedGroups = useMemo(() => {
+    if (!data?.shapes) return {};
+    const map: Record<string | number, {
+      mergeGroupId: string | number;
+      volumeId: string;
+      volume: number;
+      columns: Set<number>;
+    }> = {};
+    for (const shape of data.shapes) {
+      for (const part of shape.parts) {
+        const key = part.merge_group_id;
+        if (!map[key]) {
+          map[key] = {
+            mergeGroupId: key,
+            volumeId: part.volume_id,
+            volume: 0,
+            columns: new Set(),
+          };
+        }
+        map[key].volume += part.volume;
+        map[key].columns.add(shape.order);
       }
-      acc[groupId].volume += part.volume;
-      acc[groupId].columns.add(shape.order);
-    });
-    return acc;
-  }, {} as Record<number, {
-    groupId: number;
-    volume: number;
-    temperature?: 'positive' | 'negative';
-    columns: Set<number>;
-  }>);
+    }
+    return map;
+  }, [data?.shapes]);
 
-  // Convert to array and sort by group ID
-  const groupVolumes = Object.values(mergedGroups).sort((a, b) => a.groupId - b.groupId);
+  const totalVolumes = useMemo(() => (
+    Object.values(mergedGroups).reduce(
+      (totals, group) => {
+        const temp = selectedVolumes[group.mergeGroupId];
+        if (temp === 'positive') totals.positive += group.volume;
+        else if (temp === 'negative') totals.negative += group.volume;
+        return totals;
+      },
+      { positive: 0, negative: 0 }
+    )
+  ), [mergedGroups, selectedVolumes]);
 
-  const totalVolumes = data.shapes.reduce((acc, shape) => {
-    const shapeVolumes = shape.parts.reduce((partAcc, part) => {
-      const temp = data.selectedVolumes?.[part.merge_group_id];
-      if (!temp) return partAcc;
-      
-      return {
-        ...partAcc,
-        [temp]: (partAcc[temp] || 0) + part.volume
-      };
-    }, { positive: 0, negative: 0 });
-    
-    return {
-      positive: acc.positive + shapeVolumes.positive,
-      negative: acc.negative + shapeVolumes.negative
-    };
-  }, { positive: 0, negative: 0 });
+  const groupList = useMemo(() =>
+    Object.values(mergedGroups)
+      .sort((a, b) => {
+        const colA = Math.min(...a.columns);
+        const colB = Math.min(...b.columns);
+        if (colA !== colB) return colA - colB;
+        return String(a.mergeGroupId).localeCompare(String(b.mergeGroupId));
+      })
+  , [mergedGroups]);
+
+  // Maintenant, le return conditionnel
+  if (!data?.shapes) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <h3 className="text-sm font-medium text-gray-700 mb-4">Volumes par température</h3>
-      
-      <div className="space-y-4">
+    <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+      <h3 className="text-sm font-semibold text-cyan-900 mb-4">Volumes par température</h3>
+      <div className="space-y-2 mb-4">
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 bg-emerald-50 rounded-lg border border-emerald-200"
+          className="flex justify-between items-center px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-200"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-emerald-700">Volume positif</span>
-            <span className="text-lg">🔥</span>
-          </div>
-          <p className="text-2xl font-bold text-emerald-600">
-            {totalVolumes.positive.toFixed(2)} m³
-          </p>
+          <span className="text-sm font-medium text-emerald-700 flex items-center">
+            <span className="mr-1">🔥</span> Volume positif
+          </span>
+          <span className="text-xl font-bold text-emerald-600 tabular-nums">
+            {totalVolumes.positive.toFixed(2)} <span className="text-base">m³</span>
+          </span>
         </motion.div>
-
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="p-4 bg-blue-50 rounded-lg border border-blue-200"
+          transition={{ delay: 0.07 }}
+          className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-200"
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-blue-700">Volume négatif</span>
-            <span className="text-lg">❄️</span>
-          </div>
-          <p className="text-2xl font-bold text-blue-600">
-            {totalVolumes.negative.toFixed(2)} m³
-          </p>
+          <span className="text-sm font-medium text-blue-700 flex items-center">
+            <span className="mr-1">❄️</span> Volume négatif
+          </span>
+          <span className="text-xl font-bold text-blue-600 tabular-nums">
+            {totalVolumes.negative.toFixed(2)} <span className="text-base">m³</span>
+          </span>
         </motion.div>
       </div>
 
-      <div className="mt-8">
-        <button
-          onClick={() => setShowGroups(!showGroups)}
-          className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-        >
-          <span className="text-sm font-medium text-gray-700">Volumes par groupe</span>
-          {showGroups ? (
-            <ChevronDown className="h-4 w-4 text-gray-500" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-gray-500" />
-          )}
-        </button>
+      {/* Détail */}
+      <button
+        onClick={() => setShowVolumes(v => !v)}
+        className="w-full flex items-center justify-between p-2 pl-3 bg-gray-50 rounded-lg hover:bg-gray-100 focus:bg-gray-100 text-sm font-medium text-gray-700 border border-gray-100"
+        aria-expanded={showVolumes}
+        aria-controls="vol-table-details"
+      >
+        Détail des volumes
+        {showVolumes ? (
+          <ChevronDown className="h-4 w-4 text-gray-500" />
+        ) : (
+          <ChevronRight className="h-4 w-4 text-gray-500" />
+        )}
+      </button>
 
-        {showGroups && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-4 space-y-2"
-          >
-            {groupVolumes.map((group) => (
+      <AnimatePresence>
+      {showVolumes && (
+        <motion.div
+          id="vol-table-details"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.17 }}
+          className="mt-2 space-y-2"
+        >
+          {groupList.map((group) => {
+            const temp = selectedVolumes[group.mergeGroupId];
+            return (
               <div
-                key={group.groupId}
-                className={`p-3 rounded-lg border ${
-                  group.temperature === 'positive'
-                    ? 'bg-emerald-50/50 border-emerald-200'
-                    : group.temperature === 'negative'
-                    ? 'bg-blue-50/50 border-blue-200'
+                key={group.mergeGroupId}
+                className={`transition-all flex flex-col gap-1 p-2.5 rounded-lg border shadow-sm ${
+                  temp === 'positive'
+                    ? 'bg-emerald-50/70 border-emerald-200'
+                    : temp === 'negative'
+                    ? 'bg-blue-50/70 border-blue-200'
                     : 'bg-gray-50 border-gray-200'
                 }`}
+                tabIndex={0}
+                aria-label={`Détail caisson ${group.mergeGroupId}, ${temp ? `température ${temp}` : 'température non définie'}, ${group.volume.toFixed(2)}m³`}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-sm font-medium text-gray-700">
-                      Groupe {group.groupId}
+                    <span className="text-xs font-medium text-gray-700">
+                      Caisson <span className="tabular-nums">{group.mergeGroupId}</span>
                     </span>
-                    <p className="text-xs text-gray-500 mt-0.5">
+                    <span className="ml-2 text-xs rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-500">
                       Colonnes : {Array.from(group.columns).join(', ')}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {group.temperature ? (
-                        <span className="flex items-center">
-                          {group.temperature === 'positive' ? '🔥' : '❄️'}
-                          <span className="ml-1">
-                            Volume {group.temperature === 'positive' ? 'positif' : 'négatif'}
-                          </span>
-                        </span>
-                      ) : (
-                        'Température non définie'
-                      )}
-                    </p>
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold">
+                  <span className="text-base font-semibold">
                     {group.volume.toFixed(2)} m³
                   </span>
                 </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {temp ? (
+                    <span className={
+                      "px-2 py-0.5 rounded-xl text-xs font-bold flex items-center " +
+                      (temp === "positive"
+                        ? "text-emerald-800 bg-emerald-100/90"
+                        : "text-blue-800 bg-blue-100/90")
+                    }>
+                      {temp === 'positive' ? '🔥 Positif' : '❄️ Négatif'}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-xl text-xs font-bold text-orange-800 bg-yellow-50">
+                      Température non définie
+                    </span>
+                  )}
+                  {onVolumeSelect && (
+                    <>
+                      <button
+                        type="button"
+                        tabIndex={0}
+                        className={`px-2 py-0.5 rounded text-xs border transition-all focus-visible:outline focus-visible:ring-2 ${
+                          temp === 'positive'
+                            ? 'bg-emerald-100 border-emerald-400 text-emerald-700'
+                            : 'bg-white border-gray-300 hover:border-emerald-400'
+                        }`}
+                        aria-pressed={temp === 'positive'}
+                        onClick={() => onVolumeSelect(group.mergeGroupId, 'positive')}
+                      >🔥 Positif</button>
+                      <button
+                        type="button"
+                        tabIndex={0}
+                        className={`px-2 py-0.5 rounded text-xs border transition-all focus-visible:outline focus-visible:ring-2 ${
+                          temp === 'negative'
+                            ? 'bg-blue-100 border-blue-400 text-blue-700'
+                            : 'bg-white border-gray-300 hover:border-blue-400'
+                        }`}
+                        aria-pressed={temp === 'negative'}
+                        onClick={() => onVolumeSelect(group.mergeGroupId, 'negative')}
+                      >❄️ Négatif</button>
+                    </>
+                  )}
+                </div>
               </div>
-            ))}
-          </motion.div>
-        )}
-      </div>
+            );
+          })}
+        </motion.div>
+      )}
+      </AnimatePresence>
     </div>
   );
 };

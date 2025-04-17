@@ -1,101 +1,124 @@
 import React, { useEffect, useMemo } from 'react';
 import type { ModelingData, Temperature } from '../../../../types';
 import { VolumeGroup } from './VolumeGroup';
-import { useGroupedVolumes, COLORS } from '../../hooks/useGroupedVolumes';
-import { Info, MousePointerClick, MousePointerClick as MousePointerClick2 } from 'lucide-react';
+import { useGroupedVolumes } from '../../hooks/useGroupedVolumes';
+import { Info } from 'lucide-react';
 
 interface VolumeVisualizerProps {
   data: ModelingData | null;
+  selectedVolumes: Record<string | number, Temperature>;
+  onVolumeSelect: (mergeGroupId: string | number, temperature: Temperature) => void;
   onLoad?: () => void;
-  onVolumeSelect: (groupId: number, temperature: Temperature) => void;
   onDirtyChange?: (isDirty: boolean) => void;
 }
 
 const CONSTANTS = {
-  PADDING: 40,
-  MIN_HEIGHT: 600,
-  SHADOW_COLOR: '#00000020',
+  PADDING: 20, // Réduit pour densité
+  MIN_HEIGHT: 440,
 };
 
 export const VolumeVisualizer: React.FC<VolumeVisualizerProps> = ({
   data,
-  onLoad,
+  selectedVolumes,
   onVolumeSelect,
+  onLoad,
   onDirtyChange,
 }) => {
-  useEffect(() => {
-    onLoad?.();
-  }, [onLoad]);
+  useEffect(() => { onLoad?.(); }, [onLoad]);
 
-  const groupedVolumes = useGroupedVolumes(data?.shapes || [], data?.selectedVolumes);
+  // Le hook est toujours appelé, même si pas de data
+  const groupedVolumes = useGroupedVolumes(data?.shapes || [], selectedVolumes);
 
+  // Toujours appelé, même si groupedVolumes est vide
+  const [totalWidth, totalHeight] = useMemo(() => {
+    let maxW = 0, maxH = CONSTANTS.MIN_HEIGHT;
+    for (const g of groupedVolumes) {
+      maxW = Math.max(maxW, g.x + g.width + CONSTANTS.PADDING);
+      maxH = Math.max(maxH, g.y + g.height + CONSTANTS.PADDING);
+    }
+    return [maxW, maxH];
+  }, [groupedVolumes]);
+
+  const allDefined = useMemo(() =>
+    groupedVolumes.length > 0 &&
+    groupedVolumes.every(g => selectedVolumes[g.mergeGroupId])
+  , [groupedVolumes, selectedVolumes]);
+
+  // ➡️ Le return conditionnel seulement après les hooks
   if (!data?.shapes) return null;
 
-  // Calculate SVG dimensions
-  const totalWidth = groupedVolumes.reduce((max, group) => 
-    Math.max(max, group.x + group.width + CONSTANTS.PADDING), 0);
-  
-  const totalHeight = Math.max(
-    CONSTANTS.MIN_HEIGHT,
-    groupedVolumes.reduce((max, group) => 
-      Math.max(max, group.y + group.height + CONSTANTS.PADDING), 0)
-  );
-
   return (
-    <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+    <div className="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto pb-4 pt-1">
+      {allDefined && (
+        <div className="absolute left-2 top-2 z-10 flex items-center gap-1 px-3 py-1 rounded-2xl text-xs bg-emerald-50 border border-emerald-100 text-emerald-700 shadow-sm">
+          ✅ Tous les caissons sont affectés à une température
+        </div>
+      )}
       <svg
-        width="100%"
+        width={totalWidth}
         height={totalHeight}
         viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-        className="bg-gradient-to-b from-gray-50/50 mx-auto relative mb-4"
+        className="bg-gradient-to-b from-gray-50/70 mx-auto mb-2"
+        tabIndex={-1}
+        style={{ minWidth: 560, borderRadius: 12, touchAction: 'pan-x' }}
+        aria-label="Vue des caissons"
       >
         <defs>
-          <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="rgba(0, 0, 0, 0.1)" />
+          <filter id="shadow" x="-30%" y="-50%" width="200%" height="170%">
+            <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="rgba(0,0,0,.12)" />
           </filter>
         </defs>
-
-        {groupedVolumes.map((group) => (
+        {groupedVolumes.map((group, idx) => (
           <VolumeGroup
-            key={`${group.columnIndex}-${group.groupId}`}
-            groupId={group.groupId}
+            key={`col-${group.columnIndex}_mgid-${group.mergeGroupId}`}
+            mergeGroupId={group.mergeGroupId}
+            volumeId={group.volumeId}
             parts={group.parts}
             x={group.x}
             y={group.y}
             width={group.width}
             height={group.height}
-            temperature={group.temperature}
-            onVolumeSelect={(groupId, temp) => {
-              onVolumeSelect(groupId, temp);
+            temperature={selectedVolumes[group.mergeGroupId]}
+            onVolumeSelect={(temp) => {
+              onVolumeSelect(group.mergeGroupId, temp);
               onDirtyChange?.(true);
             }}
           />
         ))}
       </svg>
-      
-      <div className="px-4 pb-4">
-        <div className="bg-indigo-50/50 rounded-lg p-4 border border-indigo-100">
-          <div className="flex items-start gap-3 mb-3">
+      <div className="px-2">
+        <div className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100 max-w-lg mx-auto">
+          <div className="flex items-start gap-2 mb-3">
             <Info className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-medium text-gray-900">Définir les températures</h4>
-              <p className="text-xs text-gray-600 mt-1">Utilisez les boutons pour définir la température de chaque groupe</p>
+              <h4 className="text-sm font-semibold text-gray-900">Définir les températures</h4>
+              <p className="text-xs text-gray-600 mt-1">
+                Définissez pour chaque caisson (colonne) une température  :
+                <br />
+                <span className="font-medium text-cyan-700">
+                  Un choix par caisson.
+                </span>
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 mt-4">
             <div className="bg-white rounded-lg p-3 border border-emerald-100">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🔥</span>
-                <p className="text-sm text-gray-700">Volume positif</p>
+                <div>
+                  <p className="text-sm text-gray-700 font-medium">Positif (ambiant)</p>
+                  <p className="text-xs text-emerald-600">Température ambiante</p>
+                </div>
               </div>
-              <p className="text-xs text-emerald-600 font-medium mt-1">Température ambiante</p>
             </div>
             <div className="bg-white rounded-lg p-3 border border-blue-100">
               <div className="flex items-center gap-2">
                 <span className="text-lg">❄️</span>
-                <p className="text-sm text-gray-700">Volume négatif</p>
+                <div>
+                  <p className="text-sm text-gray-700 font-medium">Négatif</p>
+                  <p className="text-xs text-blue-600">Température réfrigérée</p>
+                </div>
               </div>
-              <p className="text-xs text-blue-600 font-medium mt-1">Température réfrigérée</p>
             </div>
           </div>
         </div>

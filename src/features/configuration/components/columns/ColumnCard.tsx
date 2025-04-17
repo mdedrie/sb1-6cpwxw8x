@@ -89,10 +89,13 @@ export const ColumnCard: FC<ColumnCardProps> = ({
     opacity: isDragging ? 0.8 : 1
   };
 
+  // 🟢 Handler anti-boucle de fallback d’image
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement;
-    target.src = 'https://placehold.co/300x400/e5e7eb/64748b?text=Design+non+disponible';
+    if (target.dataset.fallback === '1') return; // Empêche la boucle sur fallback aussi bloqué
     target.onerror = null;
+    target.src = '/img/design-non-disponible.jpg'; // Privilégie une image de ton public local
+    target.dataset.fallback = '1';
   };
 
   const formatValue = (value: string | undefined, type: string): string => {
@@ -123,6 +126,7 @@ export const ColumnCard: FC<ColumnCardProps> = ({
             alt={`Design ${column.design}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
             onError={handleImageError}
+            data-fallback="0"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 flex items-end justify-center p-2 transition-opacity duration-300">
@@ -153,10 +157,11 @@ export const ColumnCard: FC<ColumnCardProps> = ({
             label="Modifier la colonne"
           />
           <ActionButton
-            onClick={() => onDelete(column.id)}
+            onClick={() => column.id && onDelete(column.id)}
             icon={<Trash2 className="h-4 w-4" />}
             label="Supprimer la colonne"
             variant="danger"
+            disabled={!column.id}
           />
         </div>
       </div>

@@ -28,13 +28,9 @@ export function useVolumesApi(): UseVolumesApiReturn {
       setIsLoading(true);
       setError(null);
       await api.post(`/configuration_workflow/step3bis/sql_generate_volumes/${configId}`);
-    //  await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (err) {
-      const message = err instanceof ApiError
-        ? err.message
-        : 'Erreur lors de la génération des volumes';
-      setError(message);
-      throw new Error(message);
+      setError(err instanceof ApiError ? err.message : 'Erreur lors de la génération des volumes');
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -45,21 +41,11 @@ export function useVolumesApi(): UseVolumesApiReturn {
       setIsLoading(true);
       setError(null);
 
-      const { data, error } = await api.get<any[]>(
-        `/configuration_workflow/step7/get_modeling_json/${configId}`
-      );
+      const { data, error } = await api.get<any[]>(`/configuration_workflow/step7/get_modeling_json/${configId}`);
+      if (error) throw new ApiError(error, 0);
+      if (!Array.isArray(data)) throw new Error('Format de données invalide');
+      if (data.length === 0) throw new Error('Aucune donnée de modélisation disponible');
 
-      if (error) {
-        throw new ApiError(error, 0);
-      }
-      if (!Array.isArray(data)) {
-        throw new Error('Format de données invalide');
-      }
-      if (data.length === 0) {
-        throw new Error('Aucune donnée de modélisation disponible');
-      }
-
-      // Mapping STRICt : on re-crée chaque shape selon l'interface Shape
       return {
         shapes: data.map((shape: any): Shape => ({
           order: shape.order,
@@ -75,8 +61,7 @@ export function useVolumesApi(): UseVolumesApiReturn {
                 index: part.index,
                 height: part.height,
                 volume: part.volume,
-// Si volume_id existe, on le garde, sinon undefined (pas un faux-ID !)
-                volume_id: part.volume_id ?? undefined,                
+                volume_id: part.volume_id ?? null, // explicite null
                 addleft: part.addleft,
                 y_start: part.y_start,
                 addright: part.addright,
@@ -91,11 +76,8 @@ export function useVolumesApi(): UseVolumesApiReturn {
         }))
       };
     } catch (err) {
-      const message = err instanceof ApiError
-        ? err.message
-        : 'Erreur lors de la récupération des données';
-      setError(message);
-      throw new Error(message);
+      setError(err instanceof ApiError ? err.message : 'Erreur lors de la récupération des données');
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -118,14 +100,8 @@ export function useVolumesApi(): UseVolumesApiReturn {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? err.message
-            : err instanceof Error
-            ? err.message
-            : 'Erreur lors de l\'annotation des volumes';
-        setError(message);
-        throw new Error(message);
+        setError(err instanceof ApiError || err instanceof Error ? err.message : 'Erreur lors de l\'annotation des volumes');
+        throw err;
       } finally {
         setIsLoading(false);
       }
@@ -137,15 +113,14 @@ export function useVolumesApi(): UseVolumesApiReturn {
     try {
       setIsLoading(true);
       setError(null);
-      const { data, error } = await api.get<VolumeAnnotation[]>(
+      const { data, error, status } = await api.get<VolumeAnnotation[]>(
         `/configuration_workflow/step4/get_volumes/${configId}`
       );
-      if (error) {
-        throw new ApiError(error, 0);
-      }
-      if (!Array.isArray(data)) {
-        throw new Error('Format de données des annotations invalide');
-      }
+      // 🟢 404 = aucun volume, retour vide
+      if (error && status === 404) return {};
+      if (error) throw new ApiError(error, status ?? 0);
+      if (!Array.isArray(data)) throw new Error('Format de données des annotations invalide');
+
       const annotations: Record<string, VolumeBodyType> = {};
       data.forEach((volume: VolumeAnnotation) => {
         if (
@@ -157,11 +132,8 @@ export function useVolumesApi(): UseVolumesApiReturn {
       });
       return annotations;
     } catch (err) {
-      const message = err instanceof ApiError
-        ? err.message
-        : 'Erreur lors de la récupération des annotations';
-      setError(message);
-      throw new Error(message);
+      setError(err instanceof ApiError ? err.message : 'Erreur lors de la récupération des annotations');
+      throw err;
     } finally {
       setIsLoading(false);
     }
