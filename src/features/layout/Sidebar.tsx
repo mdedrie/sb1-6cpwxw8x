@@ -1,13 +1,8 @@
 import { FC, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Library,
-  LayoutGrid,
-  PlusSquare,
-  ChevronRight,
-  Star,
-  History,
-  Users
+  Library, LayoutGrid, PlusSquare, ChevronRight,
+  Star, History, Users
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,16 +24,30 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
     { path: '/shared', icon: Users, label: 'Partagées' },
   ];
 
+  // Améliore l'active : supporte aussi sous-routes
+  const checkActive = (itemPath: string) => (
+    location.pathname === itemPath ||
+    (itemPath.length > 1 && location.pathname.startsWith(itemPath + '/'))
+  );
+
   const toggleSection = (section: string) => {
     setExpandedSection(prev => (prev === section ? null : section));
   };
 
+  const handleKeyToggle = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleSection('catalog');
+    }
+  };
+
   return (
     <div
-      className={`fixed inset-y-0 left-0 transform ${
+      className={`fixed inset-y-0 left-0 z-30 transform ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
-      } w-64 bg-white border-r border-gray-200 transition-transform duration-200 ease-in-out z-30 flex flex-col`}
-      aria-label="Sidebar"
+      } w-64 bg-white border-r border-gray-200 transition-transform duration-200 ease-in-out flex flex-col`}
+      aria-label="Menu latéral"
+      role="navigation"
     >
       <div className="h-16 flex items-center px-4 border-b border-gray-200">
         <Link to="/" className="flex items-center space-x-3">
@@ -47,21 +56,20 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
         </Link>
       </div>
 
-      <nav className="flex-1 mt-6 px-4" aria-label="Main Navigation">
+      <nav className="flex-1 mt-6 px-4" aria-label="Navigation principale">
         <div className="space-y-1">
           {navigationItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-
+            const isActive = checkActive(item.path);
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
-                  isActive
-                    ? 'bg-indigo-50 text-indigo-600'
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 outline-none focus:ring-2 focus:ring-indigo-500
+                  ${isActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                aria-current={isActive ? 'page' : undefined}
+                tabIndex={0}
+                role="menuitem"
               >
                 <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-indigo-600' : 'text-gray-400'}`} />
                 {item.label}
@@ -70,35 +78,47 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
           })}
         </div>
 
-        {/* Section Catalogue avec items déroulants */}
+        {/* SECTION DEROULEE */}
         <div className="mt-6">
           <button
             onClick={() => toggleSection('catalog')}
-            className="w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            onKeyDown={handleKeyToggle}
+            className={`w-full flex items-center px-3 py-2 text-sm font-medium text-gray-700 rounded-md 
+              hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500
+              group`}
             aria-expanded={expandedSection === 'catalog'}
             aria-controls="catalog-section"
+            tabIndex={0}
+            role="button"
           >
             <ChevronRight
-              className={`mr-3 h-5 w-5 transform transition-transform duration-150 ${
-                expandedSection === 'catalog' ? 'rotate-90 text-indigo-600' : 'text-gray-400'
-              }`}
+              className={`mr-3 h-5 w-5 transition-transform duration-200
+                ${expandedSection === 'catalog' ? 'rotate-90 text-indigo-600' : 'text-gray-400'}
+                group-focus:text-indigo-700
+              `}
             />
-            <span>Catalogue</span>
+            <span className="font-semibold">Catalogue</span>
           </button>
-          {expandedSection === 'catalog' && (
-            <div id="catalog-section" className="mt-1 space-y-1 pl-8">
+          <div 
+            id="catalog-section"
+            aria-hidden={expandedSection !== 'catalog'}
+            className={`transition-all duration-200 overflow-hidden ${
+              expandedSection === 'catalog' ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+            }`}
+          >
+            <div className="mt-1 space-y-1 pl-8">
               {catalogItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = checkActive(item.path);
                 return (
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ${
-                      isActive
-                        ? 'bg-indigo-50 text-indigo-600'
-                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
+                    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 outline-none focus:ring-2 focus:ring-indigo-500
+                      ${isActive ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'}`}
+                    aria-current={isActive ? 'page' : undefined}
+                    tabIndex={0}
+                    role="menuitem"
                   >
                     <Icon className={`mr-3 h-5 w-5 ${isActive ? 'text-indigo-600' : 'text-gray-400'}`} />
                     {item.label}
@@ -106,7 +126,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
                 );
               })}
             </div>
-          )}
+          </div>
         </div>
       </nav>
     </div>
