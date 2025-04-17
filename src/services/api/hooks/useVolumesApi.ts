@@ -28,7 +28,7 @@ export function useVolumesApi(): UseVolumesApiReturn {
       setIsLoading(true);
       setError(null);
       await api.post(`/configuration_workflow/step3bis/sql_generate_volumes/${configId}`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    //  await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (err) {
       const message = err instanceof ApiError
         ? err.message
