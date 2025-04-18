@@ -5,6 +5,7 @@ import { useMetadata } from '../features/configuration/hooks/useMetadata';
 import { useEditorApi } from '../services/api/hooks';
 import { useWorkflowApi } from '../services/api/hooks';
 import { getRefFromId } from '../utils/parameters';
+
 import {
   ConfigurationHeader,
   ConfigurationContainer,
@@ -16,25 +17,32 @@ import {
   VolumesStep,
   CornersStep
 } from '../features/configuration/components';
-import type { Column,Step1FormData, Step2bisFormData } from '../types';
+
+import type { Column, Step1FormData, Step2bisFormData } from '../types';
+
+// ===== Utilitaires d'initialisation =====
+const EMPTY_COLUMN: Step2bisFormData = {
+  thickness: '',
+  inner_height: '',
+  inner_width: '',
+  inner_depth: '',
+  design: '',
+  finish: '',
+  door: '',
+  two_way_opening: 'C',
+  knob_direction: 'C',
+  foam_type: '',
+  body_count: 1
+};
 
 export function ConfigurationEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [columnData, setColumnData] = useState<Step2bisFormData>({
-    thickness: '',
-    inner_height: '',
-    inner_width: '',
-    inner_depth: '',
-    design: '',
-    finish: '',
-    door: '',
-    two_way_opening: 'C', // default valid
-    knob_direction: 'C',  // default valid
-    foam_type: '',
-    body_count: 1
-  });
 
+  // -- State local pour la saisie colonne --
+  const [columnData, setColumnData] = useState<Step2bisFormData>({ ...EMPTY_COLUMN });
+
+  // -- Hooks de state/config métier --
   const {
     currentStep,
     setCurrentStep,
@@ -55,6 +63,7 @@ export function ConfigurationEditor() {
   const { metadata, loading: metadataLoading, error: metadataError } = useMetadata();
 
   const [isInitializing, setIsInitializing] = useState(true);
+
   const { 
     getConfiguration, 
     createConfiguration, 
@@ -62,32 +71,29 @@ export function ConfigurationEditor() {
     isLoading: isLoadingConfig, 
     error: configError 
   } = useEditorApi();
+
   const { getColumns, isLoading: isLoadingColumns, error: columnsError } = useWorkflowApi();
   const [configId, setConfigId] = useState<string | null>(id || null);
-  const [existingColumns, setExistingColumns] = useState<any[]>([]);
+  const [existingColumns, setExistingColumns] = useState<Column[]>([]);
 
-  // Charger les données de la configuration existante
+  // ********** Chargement config existante / initialisation **********
   useEffect(() => {
     const loadExistingConfiguration = async () => {
       if (!id) {
         setIsInitializing(false);
         return;
       }
-
       try {
         const config = await getConfiguration(id);
-        const existingColumns = await getColumns(id);
-        
-        // Mettre à jour les données du formulaire
+        const apiColumns = await getColumns(id);
+
         setStep1Data({
           config_name: config.name || '',
           is_catalog: config.is_catalog
         });
 
-        // Si on a déjà des données, on peut aller à l'étape dimensions
-        if (config.name) {
-          setCurrentStep('dimensions');
-        }
+        // Si nom, on passe direct à dimensions
+        if (config.name) setCurrentStep('dimensions');
 
         setStep2Data({
           outer_height: config.dimensions?.outer_height || 0,
@@ -96,10 +102,10 @@ export function ConfigurationEditor() {
           configuration_description: config.description || ''
         });
 
-        // Convertir les colonnes existantes
-        if (existingColumns && Array.isArray(existingColumns)) {
-          setExistingColumns(existingColumns);
-          const mappedColumns = existingColumns.map((col): Column => ({
+        // Colonnes existantes (mapping)
+        if (apiColumns && Array.isArray(apiColumns)) {
+          setExistingColumns(apiColumns);
+          const mappedColumns: Column[] = apiColumns.map((col: any) => ({
             id: crypto.randomUUID(),
             position: col.column_order || 1,
             thickness: getRefFromId(metadata, 'thicknesses', col.column_thickness_id) || '',
@@ -115,13 +121,8 @@ export function ConfigurationEditor() {
             body_count: col.column_body_count || 1,
             body_id: col.column_body_id || null
           }));
-          
           setColumns(mappedColumns);
-          
-          // Si on a des colonnes, aller directement à l'étape volumes
-          if (mappedColumns.length > 0) {
-            setCurrentStep('volumes');
-          }
+          if (mappedColumns.length > 0) setCurrentStep('volumes');
         } else if (config.dimensions) {
           setCurrentStep('columns');
         }
@@ -131,43 +132,19 @@ export function ConfigurationEditor() {
         setIsInitializing(false);
       }
     };
-
     loadExistingConfiguration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, getConfiguration, getColumns, metadata]);
 
+  // ========== HANDLERS MULTI-STEP ==========
 
-  const handleBasicInfoSubmit = useCallback(async (
-    step1Data: Step1FormData,
-    isExistingConfig: boolean
-  ) => {
+  // Etape 1 (basique)
+  const handleBasicInfoNext = async () => {
     try {
       const basePayload = {
         configuration_name: step1Data.config_name.trim().toUpperCase(),
         is_catalog: step1Data.is_catalog
       };
-      
-      if (isExistingConfig) {
-        await handleUpdateDimensions();
-      } else {
-        const newConfigId = await createConfiguration(basePayload);
-        setConfigId(newConfigId);
-      }
-  
-      setCurrentStep('dimensions');
-    } catch (err) {
-      console.error('Configuration update/init error:', err);
-      throw new Error(err instanceof Error ? err.message : 'Erreur lors de la création. Veuillez réessayer.');
-    }
-  }, [createConfiguration, handleUpdateDimensions]);
-  
-  const handleBasicInfoNext = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const basePayload = {
-        configuration_name: step1Data.config_name.trim().toUpperCase(),
-        is_catalog: step1Data.is_catalog
-      };
-      
       if (!id) {
         const newConfigId = await createConfiguration(basePayload);
         setConfigId(newConfigId);
@@ -177,58 +154,35 @@ export function ConfigurationEditor() {
         setCurrentStep('dimensions');
       }
     } catch (err) {
-      // Error handled by hook
+      // handled by hook
     }
   };
 
-  const handleDimensionsNext = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Etape 2 (dimensions)
+  const handleDimensionsNext = async () => {
     try {
       const success = await handleUpdateDimensions();
-      if (success) {
-        setCurrentStep('columns');
-      }
-    } catch (err) {
-      // Error handled by hook
+      if (success) setCurrentStep('columns');
+    } catch {
+      // handled by hook
     }
   };
+  const handleDimensionsBack = () => setCurrentStep('basic');
 
-  const handleDimensionsBack = () => {
-    setCurrentStep('basic');
-  };
-
-  const handleAddColumn = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!columnData.thickness || !columnData.inner_height || !columnData.design || !columnData.door) {
-      return;
-    }
-
+  // Etape 3 (colonnes)
+  const handleAddColumn = () => {
+    if (!columnData.thickness || !columnData.inner_height || !columnData.design || !columnData.door) return;
     const newColumn: Column = {
       id: crypto.randomUUID(),
       ...columnData,
       position: columns.length + 1
     };
-
     setColumns([...columns, newColumn]);
-    setColumnData({
-      thickness: '',
-      inner_height: '',
-      inner_width: '',
-      inner_depth: '',
-      design: '',
-      finish: '',
-      door: '',
-      two_way_opening: 'C',
-      knob_direction: 'C',
-      foam_type: '',
-      body_count: 1
-    });
+    setColumnData({ ...EMPTY_COLUMN });
   };
-
+  
   const handleDeleteColumn = (id: string) => {
-    const updatedColumns = columns
-      .filter(col => col.id !== id)
-      .map((col, idx) => ({ ...col, position: idx + 1 }));
+    const updatedColumns = columns.filter(col => col.id !== id).map((col, idx) => ({ ...col, position: idx + 1 }));
     setColumns(updatedColumns);
   };
 
@@ -241,33 +195,19 @@ export function ConfigurationEditor() {
     setColumns([...columns, newColumn]);
   };
 
-  const handleColumnsBack = () => {
-    setCurrentStep('dimensions');
-  };
+  const handleColumnsBack = () => setCurrentStep('dimensions');
+  const handleColumnsSave = () => setCurrentStep('volumes');
 
-  const handleColumnsSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentStep('volumes');
-  };
+  // Etape 4 (volumes)
+  const handleVolumesBack = () => setCurrentStep('columns');
+  const handleVolumesSave = () => setCurrentStep('corners');
 
-  const handleVolumesBack = () => {
-    setCurrentStep('columns');
-  };
+  // Etape 5 (corners)
+  const handleCornersBack = () => setCurrentStep('volumes');
+  const handleCornersSave = () => navigate('/');
 
-  const handleVolumesSave = () => {
-    setCurrentStep('corners');
-  };
-
-  const handleCornersBack = () => {
-    setCurrentStep('volumes');
-  };
-
-  const handleCornersSave = () => {
-    navigate('/');
-  };
-
+  // -- Steps affichage --
   type StepStatus = 'current' | 'complete' | 'upcoming';
-
   const steps: { name: string; description: string; status: StepStatus }[] = [
     {
       name: 'Informations de base',
@@ -315,13 +255,13 @@ export function ConfigurationEditor() {
       status: currentStep === 'corners' ? 'current' : 'upcoming'
     }
   ];
-  
 
+  // -- Gestion centralisée des statuts --
   const error = stateError || metadataError || configError || columnsError;
   const loading = stateLoading || metadataLoading || isLoadingConfig || isLoadingColumns;
 
   return (
-    <div className="max-w-[98%] mx-auto px-2 sm:px-4 lg:px-6">
+<div className="w-full px-0 sm:px-4 lg:px-6">
       {isInitializing && id ? (
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-pulse text-center">
@@ -341,17 +281,16 @@ export function ConfigurationEditor() {
           </div>
 
           <ConfigurationSteps 
-            steps={steps} 
+            steps={steps}
             onStepClick={(index) => {
               const stepNames = ['basic', 'dimensions', 'columns', 'volumes'] as const;
               const targetStep = stepNames[index];
-              
               if (steps[index].status === 'complete' || steps[index].status === 'current') {
                 setCurrentStep(targetStep);
               }
             }}
           />
-          
+
           {error && (
             <ConfigurationError error={error} onDismiss={() => setError(null)} />
           )}
@@ -361,7 +300,7 @@ export function ConfigurationEditor() {
               <BasicInfoStep
                 data={step1Data}
                 onChange={setStep1Data}
-                onNext={() => handleBasicInfoNext(new Event('submit') as unknown as React.FormEvent)}
+                onNext={handleBasicInfoNext}
                 configId={configId ?? undefined}
                 isExistingConfig={Boolean(id)}
               />
@@ -425,7 +364,6 @@ export function ConfigurationEditor() {
               />
             </ConfigurationContainer>
           )}
-
         </>
       )}
     </div>

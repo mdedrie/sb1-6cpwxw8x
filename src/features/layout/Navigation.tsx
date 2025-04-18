@@ -1,17 +1,7 @@
 import { FC, useState, useRef, useEffect } from 'react';
 import {
-  Menu,
-  Settings,
-  Bell,
-  Search,
-  User,
-  LogOut,
-  HelpCircle,
-  Home,
-  FileText,
-  BookOpen,
-  Mail,
-  BugPlay
+  Menu, Settings, Bell, Search, User, LogOut, HelpCircle,
+  Home, FileText, BookOpen, Mail, BugPlay
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, FormField, Button } from '../../components/ui';
@@ -30,7 +20,7 @@ export const Navigation: FC<NavigationProps> = ({ onToggleSidebar }) => {
   const quickNavRef = useRef<HTMLDivElement>(null);
   const [showBugReport, setShowBugReport] = useState(false);
 
-  // Fermer les menus si clic en dehors
+  // Fermeture de tous les popups/menus lors d'un clic extérieur
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -52,64 +42,76 @@ export const Navigation: FC<NavigationProps> = ({ onToggleSidebar }) => {
   ];
 
   return (
-    <nav className="bg-white shadow-sm" role="navigation" aria-label="Main Navigation">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="w-full relative bg-white shadow-sm z-40" role="navigation" aria-label="Main Navigation">
+      <div className="w-full max-w-none px-2 sm:px-6 lg:px-10">
         <div className="flex justify-between items-center h-16">
-          {/* Bouton de bascule de la sidebar */}
+          {/* Sidebar toggle */}
           <div className="flex items-center">
             <button
               onClick={onToggleSidebar}
-              className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200"
-              aria-label="Toggle sidebar"
+              className="p-2 rounded-md text-gray-500 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              aria-label="Ouvrir le menu"
             >
               <Menu className="h-6 w-6" />
             </button>
           </div>
 
-          <div className="flex items-center space-x-4">
-            {/* Bouton de recherche */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            {/* Quick Nav (affichage conditionnel) */}
+            <button
+              onClick={() => setShowQuickNav(p => !p)}
+              className="p-2 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              aria-label="Raccourcis"
+              aria-haspopup="true"
+              aria-expanded={showQuickNav}
+              tabIndex={0}
+            >
+              <Home className="h-5 w-5" />
+            </button>
+
+            {/* Search */}
             <button
               onClick={() => setShowSearch(prev => !prev)}
-              className="p-2 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200"
-              aria-label="Search"
+              className="p-2 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              aria-label="Recherche"
+              aria-haspopup="true"
               aria-expanded={showSearch}
+              tabIndex={0}
             >
               <Search className="h-5 w-5" />
             </button>
-
-            {/* Bouton de signalement d'un bug */}
+            {/* Bug reporting */}
             <button
               onClick={() => setShowBugReport(true)}
-              className="p-2 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200"
-              aria-label="Report a bug"
+              className="p-2 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              aria-label="Signaler un bug"
             >
               <BugPlay className="h-5 w-5" />
             </button>
-
             {/* Notifications */}
             <button
-              className="p-2 rounded-full text-gray-500 hover:text-gray-600 relative focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200"
+              className="p-2 rounded-full text-gray-500 hover:text-gray-600 relative focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
               <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
             </button>
-
-            {/* Paramètres */}
+            {/* Settings */}
             <button
-              className="p-2 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200"
-              aria-label="Settings"
+              className="p-2 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+              aria-label="Paramètres"
             >
               <Settings className="h-5 w-5" />
             </button>
-
-            {/* Menu utilisateur */}
+            {/* User Menu */}
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowUserMenu(prev => !prev)}
-                className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors duration-200"
-                aria-label="User menu"
+                className="h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
+                aria-label="Menu utilisateur"
+                aria-haspopup="true"
                 aria-expanded={showUserMenu}
+                tabIndex={0}
               >
                 <span className="text-white text-sm font-medium">JD</span>
               </button>
@@ -118,21 +120,21 @@ export const Navigation: FC<NavigationProps> = ({ onToggleSidebar }) => {
                   <button
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                     role="menuitem"
-                    onClick={() => navigate('/profile')}
+                    onClick={() => { setShowUserMenu(false); navigate('/profile'); }}
                   >
                     <User className="inline mr-2 h-4 w-4" /> Profil
                   </button>
                   <button
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                     role="menuitem"
-                    onClick={() => navigate('/logout')}
+                    onClick={() => { setShowUserMenu(false); navigate('/logout'); }}
                   >
                     <LogOut className="inline mr-2 h-4 w-4" /> Déconnexion
                   </button>
                   <button
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                     role="menuitem"
-                    onClick={() => navigate('/help')}
+                    onClick={() => { setShowUserMenu(false); navigate('/help'); }}
                   >
                     <HelpCircle className="inline mr-2 h-4 w-4" /> Aide
                   </button>
@@ -143,37 +145,46 @@ export const Navigation: FC<NavigationProps> = ({ onToggleSidebar }) => {
         </div>
       </div>
 
-      {/* Panneau de recherche */}
+      {/* Search Panel */}
       {showSearch && (
         <div className="absolute top-16 left-0 w-full bg-white shadow-md p-4 z-40">
           <FormField
             label="Rechercher"
             value={searchQuery}
             onChange={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
-            placeholder="Rechercher..."
+            placeholder="Rechercher…"
             required
+            autoFocus
+            className="w-full max-w-xl"
           />
+          {/* Résultats potentiels ici */}
         </div>
       )}
 
-      {/* Panneau de navigation rapide (Quick Nav) */}
+      {/* Quick Navigation Panel */}
       {showQuickNav && (
-        <div ref={quickNavRef} className="absolute top-16 right-0 bg-white shadow-md rounded-md p-4 z-40">
+        <div
+          ref={quickNavRef}
+          className="absolute top-16 right-2 bg-white shadow-md rounded-md p-4 z-40 w-56"
+        >
           {quickNavItems.map((item) => (
             <button
               key={item.label}
-              onClick={() => navigate(item.path)}
-              className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-md transition-colors duration-200"
+              onClick={() => {
+                setShowQuickNav(false);
+                navigate(item.path);
+              }}
+              className="flex items-center space-x-2 p-2 w-full text-left hover:bg-gray-100 rounded-md transition-colors duration-200"
               aria-label={item.label}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-5 w-5 flex-shrink-0" />
               <span>{item.label}</span>
             </button>
           ))}
         </div>
       )}
 
-      {/* Modal pour le signalement d'un bug */}
+      {/* Bug Report Modal */}
       {showBugReport && (
         <Modal
           isOpen={showBugReport}
@@ -184,7 +195,7 @@ export const Navigation: FC<NavigationProps> = ({ onToggleSidebar }) => {
             label="Description du bug"
             textarea
             rows={4}
-            placeholder="Décrivez le problème rencontré"
+            placeholder="Décrivez le problème rencontré…"
             required
           />
           <div className="mt-4 flex justify-end space-x-2">

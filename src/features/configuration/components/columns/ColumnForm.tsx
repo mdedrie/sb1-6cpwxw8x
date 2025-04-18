@@ -26,51 +26,59 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
   );
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+    <form onSubmit={onSubmit} className="space-y-4" autoComplete="off">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <SelectField
           label="Épaisseur"
           id="thickness"
           required
+          aria-required="true"
           options={metadata?.parameters_by_category?.thicknesses}
           value={data.thickness || ''}
           metadata={metadata}
           columnValues={safeColumnValues}
           parameterType="thicknesses"
           onChange={(v) => onChange({ ...data, thickness: v })}
+          disabled={disabled}
         />
         <SelectField
           label="Hauteur"
           id="inner_height"
           required
+          aria-required="true"
           options={metadata?.parameters_by_category?.inner_heights}
           value={data.inner_height || ''}
           metadata={metadata}
           columnValues={safeColumnValues}
           parameterType="inner_heights"
           onChange={(v) => onChange({ ...data, inner_height: v })}
+          disabled={disabled}
         />
         <SelectField
           label="Largeur"
           id="inner_width"
           required
+          aria-required="true"
           options={metadata?.parameters_by_category?.inner_widths}
           value={data.inner_width || ''}
           metadata={metadata}
           columnValues={safeColumnValues}
           parameterType="inner_widths"
           onChange={(v) => onChange({ ...data, inner_width: v })}
+          disabled={disabled}
         />
         <SelectField
           label="Profondeur"
           id="inner_depth"
           required
+          aria-required="true"
           options={metadata?.parameters_by_category?.inner_depths}
           value={data.inner_depth || ''}
           metadata={metadata}
           columnValues={safeColumnValues}
           parameterType="inner_depths"
           onChange={(v) => onChange({ ...data, inner_depth: v })}
+          disabled={disabled}
         />
       </div>
 
@@ -78,38 +86,44 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
         label="Design"
         id="design"
         required
+        aria-required="true"
         options={metadata?.parameters_by_category?.designs}
         value={data.design || ''}
         metadata={metadata}
         columnValues={safeColumnValues}
         parameterType="designs"
         onChange={(v) => onChange({ ...data, design: v })}
+        disabled={disabled}
       />
       <SelectField
         label="Finition"
         id="finish"
         required
+        aria-required="true"
         options={metadata?.parameters_by_category?.finishes}
         value={data.finish || ''}
         metadata={metadata}
         columnValues={safeColumnValues}
         parameterType="finishes"
         onChange={(v) => onChange({ ...data, finish: v })}
+        disabled={disabled}
       />
 
       <div className="space-y-3">
         <h4 className="text-xs font-medium text-gray-500 uppercase">Configuration de la porte</h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField
             label="Type de porte"
             id="door"
             required
+            aria-required="true"
             options={metadata?.parameters_by_category?.doors}
             value={data.door || ''}
             metadata={metadata}
             columnValues={safeColumnValues}
             parameterType="doors"
             onChange={(v) => onChange({ ...data, door: v })}
+            disabled={disabled}
           />
           <SelectField
             label="Ouverture"
@@ -120,9 +134,10 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
             columnValues={safeColumnValues}
             parameterType="2ways"
             onChange={(v) => onChange({ ...data, two_way_opening: v as 'C' | 'G' | 'D' })}
+            disabled={disabled}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField
             label="Direction poignée"
             id="knob_direction"
@@ -132,6 +147,7 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
             columnValues={safeColumnValues}
             parameterType="knobs"
             onChange={(v) => onChange({ ...data, knob_direction: v as 'C' | 'G' | 'D' })}
+            disabled={disabled}
           />
           <div>
             <label htmlFor="body_count" className="block text-xs font-medium text-gray-700">
@@ -152,6 +168,7 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
                 })
               }
               className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm h-9"
+              aria-required="true"
             />
           </div>
         </div>
@@ -166,6 +183,7 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
         columnValues={safeColumnValues}
         parameterType="foams"
         onChange={(v) => onChange({ ...data, foam_type: v })}
+        disabled={disabled}
       />
 
       <div className="flex justify-end space-x-2 pt-4">
@@ -173,6 +191,7 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
           <button
             type="button"
             onClick={onCancel}
+            formNoValidate
             className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50"
           >
             Annuler

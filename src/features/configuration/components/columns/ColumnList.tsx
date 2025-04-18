@@ -88,33 +88,53 @@ export const ColumnList: React.FC<ColumnListProps> = ({
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <div className="relative overflow-x-auto pb-2">
-        <div role="list" className="flex gap-4 min-w-[1200px] md:min-w-full">
-          <SortableContext items={columns} strategy={horizontalListSortingStrategy}>
-            {columns.map((column) => (
-              <div
-                key={column.id}
-                role="listitem"
-                className={`min-w-[240px] max-w-[240px] flex-shrink-0 ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                <ColumnCard
-                  column={column}
-                  onDelete={onDelete}
-                  onDuplicate={onDuplicate}
-                  onEdit={() => onEdit(column)}
-                  disabled={disabled}
-                  viewMode={viewMode}
-                />
-              </div>
-            ))}
-          </SortableContext>
-        </div>
-
-        {/* Gradient de défilement visuel */}
-        <div className="absolute top-0 right-0 h-full w-12 pointer-events-none bg-gradient-to-l from-white to-transparent z-10" />
-      </div>
+      <section
+        aria-labelledby="column-list-heading"
+        className="relative w-full"
+      >
+        {/* Hidden heading for accessibility */}
+        <h2 id="column-list-heading" className="sr-only">
+          Liste de colonnes configurables
+        </h2>
+        {columns.length === 0 ? (
+          <div className="flex items-center justify-center p-8 text-gray-400 font-medium">
+            Aucune colonne ajoutée pour le moment.
+          </div>
+        ) : (
+          <div className="relative w-full overflow-x-auto pb-2">
+            <div
+              role="list"
+              className="flex gap-4 w-full min-w-0"
+              tabIndex={-1}
+            >
+              <SortableContext items={columns} strategy={horizontalListSortingStrategy}>
+                {columns.map((column) => (
+                  <div
+                    key={column.id}
+                    role="listitem"
+                    tabIndex={0}
+                    aria-label={`Colonne ${column.position} (${column.design ?? ''})`}
+                    className={`min-w-[240px] max-w-[240px] flex-shrink-0
+                      ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                      focus:outline-none focus:ring-2 focus:ring-indigo-600`}
+                  >
+                    <ColumnCard
+                      column={column}
+                      onDelete={onDelete}
+                      onDuplicate={onDuplicate}
+                      onEdit={() => onEdit(column)}
+                      disabled={disabled}
+                      viewMode={viewMode}
+                    />
+                  </div>
+                ))}
+              </SortableContext>
+            </div>
+            {/* Gradient de fin pour scroll visuel */}
+            <div className="absolute top-0 right-0 h-full w-12 pointer-events-none bg-gradient-to-l from-white to-transparent z-10" />
+          </div>
+        )}
+      </section>
     </DndContext>
   );
 };
