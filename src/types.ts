@@ -46,21 +46,23 @@ export interface Edge {
   position?: string;
   height?: number;
   length?: number;
-  coords: Coord3[]; // <-- CORRECTION ICI
+  coords: Coord3[];
+  orientation?: string;
   junctionType?: string;
   isShared?: boolean;
 }
 
 export interface Part {
-  column_order: number;
-  column_type: string;
-  part_uid?: string;
   x: number;
   y_start_m: number;
   z: number;
   width: number;
   height: number;
   depth: number;
+  part_uid?: string | number;
+  column_order?: number;
+  column_ref?: string;
+  column_description?: string;
   face_left?: string;
   face_right?: string;
   face_top?: string;
@@ -69,7 +71,11 @@ export interface Part {
   face_front?: string;
   volume_id?: string;
   edges?: Edge[];
-  reverse_compatibilities: {
+  position?: { x: number; y: number; z: number };
+  dimensions?: { width: number; height: number; depth: number };
+  column_type?: string; // utilisé pour la nomenclature
+  // ! Ajout :
+  reverse_compatibilities?: { // <-- MANQUANT dans ta version ci-dessus
     [key: string]: {
       [key: string]: {
         [key: string]: string[];

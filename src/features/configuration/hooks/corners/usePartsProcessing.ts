@@ -44,27 +44,188 @@ const createPanel = (
   return mesh;
 };
 
-function generateNomenclature(parts: Part[]): Part[] {
-  return parts.map(part => {
-    const edges: Edge[] = [];
-    const { x, y_start_m, z, width, height } = part;
-    if (![x, y_start_m, z, width, height].every(isValidNumber)) return part;
 
-    const pushEdge = (type: 'horizontal' | 'vertical', position: string, coords: Coord3[]) => {
-      if (validateCoords(coords)) {
-        edges.push({ type, position, coords, length: width, height });
-      }
-    };
-    if (part.face_left === 'present') pushEdge('vertical', 'left', [[x, y_start_m, z], [x, y_start_m + height, z]]);
-    if (part.face_right === 'present') pushEdge('vertical', 'right', [[x + width, y_start_m, z], [x + width, y_start_m + height, z]]);
-    if (['present', 'shared'].includes(part.face_top ?? '')) pushEdge('horizontal', 'top', [[x, y_start_m + height, z], [x + width, y_start_m + height, z]]);
-    if (part.face_bottom === 'present') pushEdge('horizontal', 'bottom', [[x, y_start_m, z], [x + width, y_start_m, z]]);
-    return {
-      ...part,
-      column_type: part.face_left === 'present' && part.face_right === 'present' ? 't_section' : 'angle',
+function normalizeCoords(coords: Coord3[]): Coord3[] {
+  return [...coords]
+    .map((c) => c.map((n) => +n.toFixed(4)) as Coord3)
+    .sort(
+      (a, b) =>
+        a[0] - b[0] ||
+        a[1] - b[1] ||
+        a[2] - b[2]
+    );
+}
+
+function generateNomenclature(parts: Part[]): Part[] {
+  const columns = Array.from(new Set(parts.map((p) => p.column_order))).sort((a, b) => (a ?? 0) - (b ?? 0));
+  const allParts = [...parts];
+  const nomenclature: Part[] = [];
+  const globalEdgeMap = new Map<string, { count: number; edge: any; parts: (string | number)[] }>();
+
+  const minX = Math.min(...parts.map((p) => p.x));
+  const maxX = Math.max(...parts.map((p) => p.x));
+
+  parts.forEach((part) => {
+    const {
+      x,
+      y_start_m: y,
+      z,
+      width: w,
+      height: h,
+      depth: d,
+      part_uid,
+      column_ref,
+      column_description,
+      column_order,
+      face_left,
+      face_right,
+      face_top,
+      face_bottom,
+      face_back,
+      face_front,
+      volume_id,
       edges,
+      position,
+      dimensions,
+      reverse_compatibilities,
+    } = part;
+
+    const points: Record<string, Coord3> = {
+      bottom_front_left: [x, y, z + d],
+      bottom_front_right: [x + w, y, z + d],
+      bottom_back_left: [x, y, z],
+      bottom_back_right: [x + w, y, z],
+
+      top_front_left: [x, y + h, z + d],
+      top_front_right: [x + w, y + h, z + d],
+      top_back_left: [x, y + h, z],
+      top_back_right: [x + w, y + h, z],
     };
+
+    const edgesTemp: Edge[] = [];
+
+    function addUniqueEdge(condition: boolean, edge: Edge) {
+      if (!condition) return;
+      const key = JSON.stringify(normalizeCoords(edge.coords));
+      const existing = globalEdgeMap.get(key);
+      if (!existing) {
+        edge.isShared = ['shared'].includes((part as any)[`face_${edge.position?.split('_')[0]}`]);
+        globalEdgeMap.set(key, { count: 1, edge, parts: [part_uid ?? "unknown"] });
+        edgesTemp.push(edge);
+      } else {
+        existing.count++;
+        existing.parts.push(part_uid ?? "unknown");
+      }
+    }
+
+    // Détermination du type de colonne
+    const xPositions = allParts.filter((p) => p.column_order === column_order).map((p) => p.x);
+    let columnType = 'M';
+    if (columns.length === 1) columnType = 'S';
+    else if (
+      Math.min(...xPositions) === minX ||
+      Math.max(...xPositions) === maxX
+    )
+      columnType = 'C';
+
+    // Arêtes verticales et horizontales
+    addUniqueEdge(
+      face_left === 'present',
+      { type: 'vertical', position: 'back_left', height: h, coords: [points.bottom_back_left, points.top_back_left] }
+    );
+    addUniqueEdge(
+      face_left === 'present',
+      { type: 'vertical', position: 'front_left', height: h, coords: [points.bottom_front_left, points.top_front_left] }
+    );
+    addUniqueEdge(
+      face_right === 'present',
+      { type: 'vertical', position: 'back_right', height: h, coords: [points.bottom_back_right, points.top_back_right] }
+    );
+    addUniqueEdge(
+      face_right === 'present',
+      { type: 'vertical', position: 'front_right', height: h, coords: [points.bottom_front_right, points.top_front_right] }
+    );
+
+    const isTop = ['present', 'shared'].includes(face_top as string);
+    const isBottom = ['present', 'shared'].includes(face_bottom as string);
+
+    addUniqueEdge(
+      isTop,
+      { type: 'horizontal', orientation: 'width', position: 'top_front', coords: [points.top_front_left, points.top_front_right], length: w }
+    );
+    addUniqueEdge(
+      isTop && face_left === 'present',
+      { type: 'horizontal', orientation: 'depth', position: 'top_left', coords: [points.top_back_left, points.top_front_left], length: d }
+    );
+    addUniqueEdge(
+      isTop && face_right === 'present',
+      { type: 'horizontal', orientation: 'depth', position: 'top_right', coords: [points.top_back_right, points.top_front_right], length: d }
+    );
+    addUniqueEdge(
+      isTop,
+      { type: 'horizontal', orientation: 'width', position: 'top_back', coords: [points.top_back_left, points.top_back_right], length: w }
+    );
+
+    addUniqueEdge(
+      isBottom,
+      { type: 'horizontal', orientation: 'width', position: 'bottom_front', coords: [points.bottom_front_left, points.bottom_front_right], length: w }
+    );
+    addUniqueEdge(
+      isBottom && face_left === 'present',
+      { type: 'horizontal', orientation: 'depth', position: 'bottom_left', coords: [points.bottom_back_left, points.bottom_front_left], length: d }
+    );
+    addUniqueEdge(
+      isBottom && face_right === 'present',
+      { type: 'horizontal', orientation: 'depth', position: 'bottom_right', coords: [points.bottom_back_right, points.bottom_front_right], length: d }
+    );
+    addUniqueEdge(
+      isBottom,
+      { type: 'horizontal', orientation: 'width', position: 'bottom_back', coords: [points.bottom_back_left, points.bottom_back_right], length: w }
+    );
+
+    nomenclature.push({
+      ...part,
+      column_type: columnType,
+      edges: edgesTemp,
+      position: { x, y, z },
+      dimensions: { width: w, height: h, depth: d },
+      // reverse_compatibilities: part.reverse_compatibilities, // SI besoin réellement
+    });
   });
+
+  // Attribution des types de jonction selon les arêtes partagées
+  globalEdgeMap.forEach((entry) => {
+    const junctionType = entry.count >= 2 ? 'Té' : 'Angle';
+    entry.parts.forEach((uid) => {
+      // Correction clé : toujours comparer une string|number, jamais undefined
+      const part = nomenclature.find((p) => (p.part_uid ?? "unknown") === (uid ?? "unknown"));
+      const edge = (part?.edges ?? []).find((e) =>
+        JSON.stringify(normalizeCoords(e.coords)) === JSON.stringify(normalizeCoords(entry.edge.coords))
+      );
+      if (edge) edge.junctionType = junctionType;
+    });
+  });
+
+  // Attribution forcée de Té latéral (logique métier)
+  nomenclature.forEach((part) => {
+    if (part.column_type !== 'C') return;
+    const left = nomenclature.find((p) => (p.column_order ?? 0) === ((part.column_order ?? 0) - 1));
+    const right = nomenclature.find((p) => (p.column_order ?? 0) === ((part.column_order ?? 0) + 1));
+
+    if (left && part.face_left === 'present') {
+      (part.edges ?? []).forEach((e) => {
+        if (e.position?.includes('left')) e.junctionType = 'Té';
+      });
+    }
+
+    if (right && part.face_right === 'present') {
+      (part.edges ?? []).forEach((e) => {
+        if (e.position?.includes('right')) e.junctionType = 'Té';
+      });
+    }
+  });
+
+  return nomenclature;
 }
 
 function classifyEdgesStrict(nomenclature: Part[]): Part[] {
