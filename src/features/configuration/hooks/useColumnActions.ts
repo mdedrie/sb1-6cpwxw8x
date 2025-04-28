@@ -7,7 +7,7 @@ const RESTRICTED_FIRST_POSITION = ['0', 'Fr', '1r'];
 const RESTRICTED_LAST_POSITION = ['0', 'Fl', '1l'];
 
 interface ExistingColumn {
-  column_order: number;
+  column_order: number | string;
   column_body_count?: number;
   [key: string]: any;
 }
@@ -28,9 +28,7 @@ export function useColumnActions({
 }: UseColumnActionsProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const { addColumn } = useWorkflowApi(); // 
-
-  // ... validateColumnPosition, compareColumns, validateAllPositions inchangés
+  const { addColumn, deleteColumn } = useWorkflowApi();
 
   const validateColumnPosition = useCallback((column: Column, columns: Column[]): string | null => {
     const isFirstPosition = column.position === 1;
@@ -58,9 +56,10 @@ export function useColumnActions({
       door: 'doors',
       two_way_opening: '2ways',
       knob_direction: 'knobs',
-      foam_type: 'foams'
+      foam_type: 'foams',
     } as const;
-    if (newColumn.position !== existingColumn.column_order) return false;
+    // --- PATCH ici ---
+    if (String(newColumn.position) !== String(existingColumn.column_order)) return false;
     if ((newColumn.body_count || 1) !== existingColumn.column_body_count) return false;
     for (const [field, category] of Object.entries(parameterCategories)) {
       const newValue = newColumn[field as keyof Column];
@@ -91,7 +90,10 @@ export function useColumnActions({
       setError(positionError);
       return false;
     }
-    const sortedExistingColumns = [...existingColumns].sort((a, b) => a.column_order - b.column_order);
+    // PATCH 2 (tri robustifié)
+    const sortedExistingColumns = [...existingColumns].sort(
+      (a, b) => Number(a.column_order) - Number(b.column_order)
+    );
     const hasChanges = columns.some((col, idx) => {
       const existingColumn = sortedExistingColumns[idx];
       return !existingColumn || !compareColumns(col, existingColumn);
@@ -105,6 +107,15 @@ export function useColumnActions({
       setIsSaving(true);
       setError(null);
 
+      // PATCH 3 sur la comparaison !
+      const deletedColumns = existingColumns.filter(
+        ec => !columns.some(c => String(c.position) === String(ec.column_order))
+      );
+      for (const del of deletedColumns) {
+        await deleteColumn(configId, Number(del.column_order)); // 👈 conversion explicite ici
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
       const parameterCategories = {
         thickness: 'thicknesses',
         inner_height: 'inner_heights',
@@ -115,7 +126,7 @@ export function useColumnActions({
         door: 'doors',
         two_way_opening: '2ways',
         knob_direction: 'knobs',
-        foam_type: 'foams'
+        foam_type: 'foams',
       } as const;
 
       for (const column of columns) {
@@ -123,7 +134,7 @@ export function useColumnActions({
           const value = column[field as keyof Column];
           if (value) {
             const params = metadata?.parameters_by_category?.[category];
-            const param = params?.find(p => p.ref === value);
+            const param = params?.find((p) => p.ref === value);
             if (param && typeof param.id === 'number') {
               const fieldName = field === 'door' ? 'door_type' : field === 'foam_type' ? 'foam_type' : field;
               acc[`column_${fieldName}_id`] = param.id;
@@ -136,13 +147,11 @@ export function useColumnActions({
           ...mappedIds,
           column_body_count: column.body_count || 1,
           column_order: column.position,
-          configuration_id: configId
+          configuration_id: configId,
         };
 
-        // 🔥 Unifié : toujours addColumn (le back gère create/update)
         await addColumn(configId, columnData);
-
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
       return true;
     } catch (err) {
@@ -157,6 +166,7 @@ export function useColumnActions({
     columns,
     metadata,
     addColumn,
+    deleteColumn,
     existingColumns,
     compareColumns,
     validateAllPositions,
@@ -166,6 +176,6 @@ export function useColumnActions({
     error,
     isSaving,
     handleSaveColumns,
-    validateColumnPosition
+    validateColumnPosition,
   };
 }

@@ -7,11 +7,13 @@ import { ColumnPreview } from '../columns/ColumnPreview';
 import { useColumnActions } from '../../hooks/useColumnActions';
 import type { Column, StepMetadata, Step2bisFormData } from '../../../../types';
 
+type ExistingColumn = Column & { column_order: number }; // assure la présence de column_order
+
 interface ColumnsStepProps {
   columns: Column[];
   onColumnsChange: (columns: Column[]) => void;
   configId: string | null;
-  existingColumns?: any[];
+  existingColumns?: ExistingColumn[];
   columnData: Step2bisFormData;
   onColumnDataChange: (data: Step2bisFormData) => void;
   metadata: StepMetadata | null;
@@ -28,7 +30,7 @@ interface ColumnsStepProps {
 export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   columns,
   configId,
-  existingColumns,
+  existingColumns = [],
   onColumnsChange,
   columnData,
   onColumnDataChange,
@@ -44,6 +46,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
 }) => {
   const [viewMode] = useState<'grid' | 'list'>('grid');
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
+  // On transmet bien existingColumns qui a toujours column_order
   const { handleSaveColumns, error: saveError, isSaving: internalIsSaving } = useColumnActions({
     columns,
     onColumnsChange,
@@ -57,7 +60,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
     try {
       const success = await handleSaveColumns();
       if (success) {
-        handleSaveSuccess(e);
+        await handleSaveSuccess(e);
       }
     } catch (err) {
       console.error('Failed to save columns:', err);
@@ -135,15 +138,12 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
               </span>
             </div>
           </div>
-
           {errorMessage && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">{errorMessage}</p>
             </div>
           )}
-
           <ColumnPreview columns={columns} metadata={metadata} />
-
           {columns.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed border-gray-200 rounded-lg p-8">
               <div className="text-center">
@@ -177,7 +177,6 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
             />
           )}
         </div>
-
         <div className="xl:w-96 flex-shrink-0">
           <div className="sticky top-4">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
