@@ -1,9 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect';
 import type { RefObject } from 'react';
-
 
 type SceneSetup = {
   sceneRef: RefObject<THREE.Scene | null>;
@@ -11,6 +10,7 @@ type SceneSetup = {
   rendererRef: RefObject<THREE.WebGLRenderer | null>;
   controlsRef: RefObject<OrbitControls | null>;
   effect: OutlineEffect | null;
+  ready: boolean; // Ajout : scène prête
 };
 
 export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): SceneSetup {
@@ -21,11 +21,13 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
   const effectRef = useRef<OutlineEffect | null>(null);
   const animationIdRef = useRef<number>();
   const resizeObserverRef = useRef<ResizeObserver>();
+  const [ready, setReady] = useState(false); // <- new
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || sceneRef.current) return;
 
+    // -- SETUP SCENE --
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xf8f8f8);
     sceneRef.current = scene;
@@ -54,6 +56,8 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
     scene.add(new THREE.AmbientLight(0xffffff, 1.2));
     scene.add(new THREE.GridHelper(10, 10));
 
+    setReady(true); // <-- marquer la scène comme prête
+
     let mounted = true;
     const animate = () => {
       if (!mounted) return;
@@ -74,6 +78,7 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
 
     return () => {
       mounted = false;
+      setReady(false); // <-- marquer la scène NON prête au démontage
       if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
       if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
 
@@ -104,13 +109,12 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
     };
   }, [containerRef]);
 
-// dans useSceneSetup.ts
-return {
-  sceneRef,
-  cameraRef,
-  rendererRef,
-  controlsRef,
-  effect: effectRef.current
-};
-
+  return {
+    sceneRef,
+    cameraRef,
+    rendererRef,
+    controlsRef,
+    effect: effectRef.current,
+    ready, // <- Ajouté pour protection d’utilisation asynchrone
+  };
 }

@@ -1,3 +1,5 @@
+export type Coord3 = [number, number, number]; // <-- Ajout ICI
+
 export interface StepMetadata {
   parameters_by_category: {
     thicknesses: ParameterItem[];
@@ -44,7 +46,7 @@ export interface Edge {
   position?: string;
   height?: number;
   length?: number;
-  coords: number[][];
+  coords: Coord3[]; // <-- CORRECTION ICI
   junctionType?: string;
   isShared?: boolean;
 }

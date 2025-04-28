@@ -25,52 +25,51 @@ export const CornersStep: React.FC<CornersStepProps> = ({
   error: externalError
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [shouldLoadParts, setShouldLoadParts] = useState(false);
+  const [loadRequested, setLoadRequested] = useState(false);
   const [showNomenclature, setShowNomenclature] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false); // ✅ indicateur pour message succès
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  // === Callback après chargement ===
+  // Callback appelé UNE FOIS lors du succès de chargement !
   const handlePartsLoaded = useCallback(() => {
-    setShouldLoadParts(false);
-    setHasLoaded(true); // ✅ succès
+    setLoadRequested(false);
+    setHasLoaded(true);
   }, []);
 
-  // === Initialisation de la scène ===
+  // Setup Three.js scene et caméra (voir ready)
   const {
     sceneRef,
     cameraRef,
     rendererRef,
-    controlsRef
+    controlsRef,
+    ready
   } = useSceneSetup(containerRef);
 
-  const { addPermanentEdge, highlightEdge, resetHighlight } = useEdgeVisualization(sceneRef.current);
+  // Hooks 3D actifs si scène prête
+  const { addPermanentEdge, highlightEdge, resetHighlight } = useEdgeVisualization(
+    ready ? sceneRef.current : null
+  );
 
-  const {
-    loading,
-    error: partsError,
-    nomenclature
-  } = usePartsProcessing(
+  const { loading, error: partsError, nomenclature } = usePartsProcessing(
     configId,
-    sceneRef.current,
+    ready ? sceneRef.current : null,
     addPermanentEdge,
-    shouldLoadParts,
+    loadRequested, // On ne lance que sur clic manuel
     handlePartsLoaded
   );
 
-  const {
-    drawModeEnabled,
-    toggleDrawMode,
-    animate
-  } = useDrawMode(
+  const { drawModeEnabled, toggleDrawMode, startAnimationLoop } = useDrawMode(
     rendererRef,
     sceneRef,
     cameraRef,
     controlsRef
   );
 
+  // Optionnel : lance animate si on veut un mode technique interactif
   useEffect(() => {
-    if (drawModeEnabled) animate();
-  }, [drawModeEnabled, animate]);
+    if (drawModeEnabled && ready) {
+      startAnimationLoop();
+    }
+  }, [drawModeEnabled, startAnimationLoop, ready]);
 
   const renderError = externalError || partsError;
 
@@ -86,15 +85,15 @@ export const CornersStep: React.FC<CornersStepProps> = ({
       )}
 
       <div className="flex flex-col space-y-4">
-        {/* === Bouton de chargement === */}
+        {/* === Bouton de chargement manuel === */}
         <div className="flex flex-col items-center space-y-2">
           <Button
             variant="secondary"
             onClick={() => {
-              setShouldLoadParts(true);
-              setHasLoaded(false); // reset message de succès
+              setHasLoaded(false);
+              setLoadRequested(true);
             }}
-            disabled={shouldLoadParts || loading}
+            disabled={loadRequested || loading || !ready}
             className="flex items-center"
           >
             {loading ? (
@@ -110,7 +109,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
             )}
           </Button>
 
-          {/* ✅ Message succès */}
+          {/* Message succès ssi chargé sans erreur */}
           {hasLoaded && !loading && !renderError && (
             <p className="text-sm text-green-600">✅ Données chargées avec succès</p>
           )}
@@ -129,6 +128,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
             onClick={toggleDrawMode}
             className="flex items-center"
             aria-pressed={drawModeEnabled}
+            disabled={!ready}
           >
             {drawModeEnabled ? '🎨 Mode normal' : '📐 Mode dessin technique'}
           </Button>
@@ -138,6 +138,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
             onClick={() => setShowNomenclature(prev => !prev)}
             className="flex items-center"
             aria-expanded={showNomenclature}
+            disabled={!ready}
           >
             <Table className="h-4 w-4 mr-2" />
             {showNomenclature ? 'Masquer la nomenclature' : 'Afficher la nomenclature'}

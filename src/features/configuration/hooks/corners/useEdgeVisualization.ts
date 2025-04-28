@@ -1,81 +1,114 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 
-// === Couleurs des arêtes ===
 export const EDGE_COLORS = {
   left: 0x1f77b4,
   right: 0x2ca02c,
   top: 0xff7f0e,
   bottom: 0xd62728,
   back: 0x9467bd,
-  outline: 0x000000
+  outline: 0x000000,
+  highlight: 0xffff00,
 } as const;
 
-export function useEdgeVisualization(scene: THREE.Scene | null) {
-  const highlightedEdgesRef = useRef<THREE.Line[]>([]);
-  const permanentEdgesRef = useRef<THREE.Line[]>([]);
-  const outlineEdgesRef = useRef<THREE.Line[]>([]);
+type LineRefs = {
+  permanent: THREE.Line[],
+  outline: THREE.Line[],
+  highlight: THREE.Line[],
+}
 
-  const createLine = (points: THREE.Vector3[], color: number, linewidth = 2, opacity = 1, transparent = false) => {
-    const material = new THREE.LineBasicMaterial({ color, linewidth, transparent, opacity });
+/**
+ * Centralise la gestion de toutes les arêtes (permanentes, surbrillantes et contour)
+ */
+export function useEdgeVisualization(scene: THREE.Scene | null) {
+  // on regroupe les refs pour simplifier les resets/clean
+  const linesRef = useRef<LineRefs>({
+    permanent: [],
+    outline: [],
+    highlight: [],
+  });
+
+  /**
+   * Générateur de THREE.Line propre (mémo sauf changement scene, très rare)
+   */
+  const createLine = useCallback((
+    points: THREE.Vector3[], color: number, width = 2, opacity = 1, transparent = false
+  ): THREE.Line => {
+    const material = new THREE.LineBasicMaterial({ color, linewidth: width, transparent, opacity });
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     return new THREE.Line(geometry, material);
-  };
+  }, []);
 
-  // === Ajout d'une arête permanente avec son contour noir ===
+  /**
+   * Ajoute une arête définitive (avec un léger contour sous-jacent)
+   */
   const addPermanentEdge = useCallback((points: THREE.Vector3[], color: number) => {
     if (!scene || points.length < 2) return;
 
-    const mainLine = createLine(points, color, 2);
+    const mainLine = createLine(points, color, 2, 1, false);
     scene.add(mainLine);
-    permanentEdgesRef.current.push(mainLine);
+    linesRef.current.permanent.push(mainLine);
 
+    // Outline léger juste derrière, plus épais, translucide
     const outlineLine = createLine(points, EDGE_COLORS.outline, 3, 0.3, true);
-    outlineLine.position.z += 0.001;
+    outlineLine.position.z += 0.001;      // anti-z-fighting (effet visuel)
     scene.add(outlineLine);
-    outlineEdgesRef.current.push(outlineLine);
-  }, [scene]);
+    linesRef.current.outline.push(outlineLine);
+  }, [scene, createLine]);
 
-  // === Arête temporaire en surbrillance (jaune) ===
+  /**
+   * Affiche temporairement une arête en surbrillance (jaune) 
+   */
   const highlightEdge = useCallback((coords: number[][]) => {
     if (!scene || coords.length < 2) return;
-    resetHighlight();
+    resetHighlight(); // retire la surbrillance précédente
 
     const points = coords.map(([x, y, z]) => new THREE.Vector3(x, y, z));
-    const highlightLine = createLine(points, 0xffff00);
+    const highlightLine = createLine(points, EDGE_COLORS.highlight, 4, 1, false);
     scene.add(highlightLine);
-    highlightedEdgesRef.current.push(highlightLine);
-  }, [scene]);
+    linesRef.current.highlight.push(highlightLine);
+  }, [scene, createLine]);
 
-  // === Réinitialise les arêtes surlignées ===
+  /**
+   * Supprime toutes les surbrillances
+   */
   const resetHighlight = useCallback(() => {
     if (!scene) return;
-    highlightedEdgesRef.current.forEach(line => {
+    linesRef.current.highlight.forEach(line => {
       scene.remove(line);
       line.geometry.dispose();
       (line.material as THREE.Material).dispose();
     });
-    highlightedEdgesRef.current = [];
+    linesRef.current.highlight = [];
   }, [scene]);
 
-  // === Nettoyage mémoire sur démontage (facultatif) ===
+  /**
+   * Nettoie tout: permanent, surbrillance, contours. Appelé au démontage.
+   * (optionnel: si tu veux l'exposer en retour, tu peux le faire)
+   */
+  const resetAllEdges = useCallback(() => {
+    if (!scene) return;
+    Object.values(linesRef.current).flat().forEach(line => {
+      scene.remove(line);
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    });
+    linesRef.current.permanent = [];
+    linesRef.current.outline = [];
+    linesRef.current.highlight = [];
+  }, [scene]);
+
+  // Au démontage => full cleanup mémoire
   useEffect(() => {
     return () => {
-      [...highlightedEdgesRef.current, ...permanentEdgesRef.current, ...outlineEdgesRef.current].forEach(line => {
-        scene?.remove(line);
-        line.geometry.dispose();
-        (line.material as THREE.Material).dispose();
-      });
-
-      highlightedEdgesRef.current = [];
-      permanentEdgesRef.current = [];
-      outlineEdgesRef.current = [];
+      resetAllEdges();
     };
-  }, [scene]);
-
+  }, [scene, resetAllEdges]);
+  
   return {
     addPermanentEdge,
     highlightEdge,
-    resetHighlight
+    resetHighlight,
+    resetAllEdges, // bonus: pour tout nettoyer ou recopier la scène
   };
 }
