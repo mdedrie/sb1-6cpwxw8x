@@ -52,7 +52,7 @@ export const ColumnList: React.FC<ColumnListProps> = ({
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
-    if (disabled) return; // BLOCK DND si désactivé
+    if (disabled) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -103,10 +103,15 @@ export const ColumnList: React.FC<ColumnListProps> = ({
             Aucune colonne ajoutée pour le moment.
           </div>
         ) : (
-          <div className="relative w-full overflow-x-auto pb-2">
+          <div className="relative w-full pb-2">
             <div
               role="list"
-              className="flex gap-4 w-full min-w-0"
+              // Tailwind 3.x+ arbitrary value: min 280px, max 1fr, auto-fit
+              className="
+                w-full
+                grid gap-2
+                [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]
+              "
               tabIndex={-1}
             >
               <SortableContext items={columns} strategy={horizontalListSortingStrategy}>
@@ -117,9 +122,10 @@ export const ColumnList: React.FC<ColumnListProps> = ({
                     tabIndex={0}
                     aria-label={`Colonne ${column.position} (${column.design ?? ''})`}
                     aria-disabled={disabled}
-                    className={`min-w-[240px] max-w-[240px] flex-shrink-0
+                    className={`
+                      focus:outline-none focus:ring-2 focus:ring-indigo-600
                       ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-                      focus:outline-none focus:ring-2 focus:ring-indigo-600`}
+                    `}
                   >
                     <ColumnCard
                       column={column}
@@ -133,8 +139,8 @@ export const ColumnList: React.FC<ColumnListProps> = ({
                 ))}
               </SortableContext>
             </div>
-            {/* Gradient de fin pour scroll visuel */}
-            <div className="absolute top-0 right-0 h-full w-12 pointer-events-none bg-gradient-to-l from-white to-transparent z-10" />
+            {/* Optionnel: gradient pour effet visuel (si overflow) */}
+            <div className="absolute top-0 right-0 h-full w-12 pointer-events-none bg-gradient-to-l from-white to-transparent z-10" /> 
           </div>
         )}
       </section>

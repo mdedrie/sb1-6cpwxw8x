@@ -1,4 +1,4 @@
-import { FC, useState, KeyboardEvent, useCallback, useMemo } from 'react';
+import { FC, useState, useCallback, useMemo, useEffect, KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Library, LayoutGrid, PlusSquare, ChevronRight,
@@ -15,9 +15,6 @@ interface NavItem {
   label: string;
 }
 
-/**
- * Factorise les listes d'items, évite la duplication et isoler le rendu d'un lien.
- */
 const NAVIGATION_ITEMS: NavItem[] = [
   { path: '/', icon: LayoutGrid, label: 'Catalogue' },
   { path: '/editor', icon: PlusSquare, label: 'Nouvelle Configuration' },
@@ -29,13 +26,10 @@ const CATALOG_ITEMS: NavItem[] = [
   { path: '/shared', icon: Users, label: 'Partagées' },
 ];
 
-
-// UTILITY: Gère active strict+sous-routes
 const isPathActive = (currentPath: string, targetPath: string) =>
   currentPath === targetPath ||
   (targetPath !== '/' && currentPath.startsWith(targetPath + '/'));
 
-// DRY: Isoler le rendu d'un lien (avec memo pour perf)
 const SidebarLink: FC<{
   item: NavItem;
   active: boolean;
@@ -59,17 +53,21 @@ const SidebarLink: FC<{
   );
 };
 
-// Render principal du composant Sidebar
 export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
   const location = useLocation();
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
-  // Evite une closure inutile sur chaque render
+  // Ouvre le catalogue si on navigue vers un link inclus dedans.
+  useEffect(() => {
+    if (CATALOG_ITEMS.some(item => isPathActive(location.pathname, item.path))) {
+      setExpandedSection('catalog');
+    }
+  }, [location.pathname]);
+
   const toggleSection = useCallback((section: string) => {
     setExpandedSection(prev => (prev === section ? null : section));
   }, []);
 
-  // Maximum accessibilité + micro-optimisation: évite de recréer la fonction à chaque render
   const handleKeyToggle = useCallback(
     (e: KeyboardEvent) => {
       if (['Enter', ' '].includes(e.key)) {
@@ -80,7 +78,6 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
     [toggleSection]
   );
 
-  // Memoise le calcul des actives si besoin
   const navLinks = useMemo(
     () =>
       NAVIGATION_ITEMS.map(item => (
@@ -105,7 +102,6 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
     [location.pathname]
   );
 
-  // Extrait les classes pour meilleure maintenance + animation propre
   const sidebarClasses =
     `fixed inset-y-0 left-0 z-30 transform ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     w-64 bg-white border-r border-gray-200 transition-transform duration-200 ease-in-out flex flex-col`;
@@ -113,7 +109,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
   const catalogSectionClasses =
     `transition-all duration-200 overflow-hidden ${
       expandedSection === 'catalog'
-        ? 'max-h-64 opacity-100'
+        ? 'max-h-[400px] opacity-100'
         : 'max-h-0 opacity-0 pointer-events-none'
     }`;
 
@@ -138,6 +134,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
             aria-controls="catalog-section"
             tabIndex={0}
             role="button"
+            type="button"
           >
             <ChevronRight
               className={`mr-3 h-5 w-5 transition-transform duration-200 ${
@@ -151,7 +148,7 @@ export const Sidebar: FC<SidebarProps> = ({ isOpen }) => {
             aria-hidden={expandedSection !== 'catalog'}
             className={catalogSectionClasses}
           >
-            <div className="mt-1 space-y-1 pl-8">{catalogLinks}</div>
+            <div className="mt-1 space-y-1 pl-8 overflow-y-auto">{catalogLinks}</div>
           </div>
         </div>
       </nav>
