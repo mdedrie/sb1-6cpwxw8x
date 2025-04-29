@@ -13,9 +13,9 @@ const router = createBrowserRouter([
       { index: true, element: <Catalog /> },
       { path: 'editor', element: <ConfigurationEditor /> },
       { path: 'editor/:id', element: <ConfigurationEditor /> },
-      { path: '*', element: <Navigate to="/" replace /> }
-    ]
-  }
+    ],
+  },
+  { path: '*', element: <Navigate to="/" replace /> }
 ]);
 
 function App() {
