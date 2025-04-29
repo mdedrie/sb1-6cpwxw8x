@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Settings, DollarSign } from 'lucide-react';
 
 interface ConfigurationHeaderProps {
@@ -8,6 +8,11 @@ interface ConfigurationHeaderProps {
   totalPrice?: number;
   className?: string;
 }
+
+const truncateId = (id: string | null | undefined, max = 16) => {
+  if (!id) return '';
+  return id.length > max ? id.substring(0, max - 3) + '...' : id;
+};
 
 export const ConfigurationHeader: React.FC<ConfigurationHeaderProps> = ({
   title,
@@ -21,15 +26,10 @@ export const ConfigurationHeader: React.FC<ConfigurationHeaderProps> = ({
       ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(totalPrice)
       : null;
 
-  // Fonction pour tronquer l'identifiant (max=16 par défaut)
-  const truncateId = (id: string | null | undefined, max = 16) => {
-    if (!id) return '';
-    return id.length > max ? id.substring(0, max - 3) + '...' : id;
-  };
-
   return (
     <header
       role="banner"
+      tabIndex={0}
       className={`w-full flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-2 px-2 sm:px-4 bg-white rounded-lg border border-gray-200 shadow-sm ${className}`}
       aria-label="En-tête de la configuration"
       data-testid="configuration-header"
@@ -64,10 +64,11 @@ export const ConfigurationHeader: React.FC<ConfigurationHeaderProps> = ({
           )}
         </div>
 
-        {formattedPrice && (
+        {formattedPrice && totalPrice && totalPrice > 0 && (
           <div
             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-100"
             aria-label={`Prix total : ${formattedPrice}`}
+            role="status"
           >
             <DollarSign className="h-4 w-4 mr-1" aria-hidden="true" />
             {formattedPrice}

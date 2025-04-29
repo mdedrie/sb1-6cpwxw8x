@@ -7,8 +7,8 @@ interface BasicInfoStepProps {
   data: Step1FormData;
   onChange: (data: Step1FormData) => void;
   onNext: () => void | Promise<void>;
-  loading?: boolean;           // Ajout optionnel pour feedback parent
-  error?: string;              // Ajout optionnel pour feedback parent
+  loading?: boolean;
+  error?: string;
   configId?: string;
   isExistingConfig?: boolean;
 }
@@ -42,17 +42,14 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
-
     const validation = validateForm();
     if (validation) {
       setValidationError(validation);
       return;
     }
-
     setIsSubmitting(true);
     try {
       await Promise.resolve(onNext());
-      // C'est le parent qui pilote la suite (chargement, navigation...), pas ici
     } finally {
       setIsSubmitting(false);
     }
@@ -64,8 +61,8 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
       className="w-full max-w-full space-y-6 px-0 sm:px-4"
       noValidate
       data-testid="basic-info-step-form"
+      aria-busy={isSubmitting || loading}
     >
-      {/* info */}
       <div
         id="screen_general_helper"
         className="flex items-center w-full text-gray-600 text-sm gap-2 mb-1"
@@ -90,62 +87,65 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
         </div>
       )}
 
-      <div className="w-full">
-        <FormField
-          label="Nom de la configuration"
-          id="config_name"
-          placeholder="Ex : Standard A1"
-          value={data.config_name}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChange({ ...data, config_name: e.target.value })
-          }
-          className="w-full transition-all duration-200 focus:ring-2"
-          required
-          error={validationError ?? error ?? undefined}
-          aria-invalid={!!(validationError || error)}
-          aria-describedby={[
-            (validationError || error) && 'config_name_error',
-            'config_name_helper',
-            'screen_general_helper'
-          ].filter(Boolean).join(' ')}
-          autoFocus
-        />
-        <div
-          id="config_name_helper"
-          className="text-gray-400 text-xs mt-1 ml-1"
-          aria-live="polite"
-        >
-          3 à 100 caractères.
+      <fieldset disabled={isSubmitting || loading} className="border-none p-0 m-0">
+        <div className="w-full">
+          <FormField
+            label="Nom de la configuration"
+            id="config_name"
+            placeholder="Ex : Standard A1"
+            value={data.config_name}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              onChange({ ...data, config_name: e.target.value })
+            }
+            className="w-full transition-all duration-200 focus:ring-2"
+            required
+            error={validationError ?? error ?? undefined}
+            aria-invalid={!!(validationError || error)}
+            aria-describedby={[
+              (validationError || error) && 'config_name_error',
+              'config_name_helper',
+              'screen_general_helper'
+            ].filter(Boolean).join(' ')}
+            autoFocus
+          />
+          <div
+            id="config_name_helper"
+            className="text-gray-400 text-xs mt-1 ml-1"
+            aria-live="polite"
+          >
+            3 à 100 caractères.
+          </div>
         </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center w-full bg-gray-50 p-3 rounded-md hover:bg-gray-100 transition-all duration-200 gap-2">
-        <input
-          type="checkbox"
-          id="is_catalog"
-          checked={data.is_catalog}
-          onChange={e =>
-            onChange({ ...data, is_catalog: e.target.checked })
-          }
-          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1 sm:mt-0"
-          aria-describedby="is_catalog_helper"
-        />
-        <label htmlFor="is_catalog" className="ml-2 text-sm text-gray-700 select-none">
-          Cataloguée&nbsp;?
-        </label>
-        <span
-          title="Rendre cette configuration visible dans le catalogue partagé"
-          className="inline-block align-middle ml-1"
-        >
-          <Info className="h-3 w-3 text-blue-300" aria-hidden="true" />
-        </span>
-        <div
-          id="is_catalog_helper"
-          className="text-gray-400 text-xs ml-7 sm:ml-2 mt-1"
-        >
-          Rendez cette configuration visible à tous.
+        <div className="flex flex-col sm:flex-row items-start sm:items-center w-full bg-gray-50 p-3 rounded-md hover:bg-gray-100 transition-all duration-200 gap-2">
+          <input
+            type="checkbox"
+            id="is_catalog"
+            checked={data.is_catalog}
+            onChange={e =>
+              onChange({ ...data, is_catalog: e.target.checked })
+            }
+            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1 sm:mt-0"
+            aria-describedby="is_catalog_helper"
+            aria-checked={data.is_catalog}
+          />
+          <label htmlFor="is_catalog" className="ml-2 text-sm text-gray-700 select-none">
+            Cataloguée&nbsp;?
+          </label>
+          <span
+            title="Rendre cette configuration visible dans le catalogue partagé"
+            className="inline-block align-middle ml-1"
+          >
+            <Info className="h-3 w-3 text-blue-300" aria-hidden="true" />
+          </span>
+          <div
+            id="is_catalog_helper"
+            className="text-gray-400 text-xs ml-7 sm:ml-2 mt-1"
+          >
+            Rendez cette configuration visible à tous.
+          </div>
         </div>
-      </div>
+      </fieldset>
 
       <div className="flex justify-end w-full mt-8">
         <Button

@@ -4,29 +4,44 @@ import type { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 export type DrawMode = 'draw' | 'erase' | 'select';
 
+interface UseDrawModeReturn {
+  mode: DrawMode;
+  drawModeEnabled: boolean;
+  setMode: (mode: DrawMode) => void;
+  setDrawModeEnabled: (enabled: boolean) => void;
+  toggleDrawMode: () => void;
+  reset: () => void;
+  startAnimationLoop: () => void;
+}
+
+/**
+ * Hook gestion de mode dessin pour scène ThreeJS.
+ */
 export function useDrawMode(
   rendererRef: React.RefObject<WebGLRenderer | null>,
   sceneRef: React.RefObject<Scene | null>,
   cameraRef: React.RefObject<Camera | null>,
   controlsRef: React.RefObject<OrbitControls | null>,
   /**
-   * Optionnel, permet d’injecter une fonction à exécuter à chaque frame
+   * Optionnel : callback à chaque frame
    */
   onFrame?: () => void
-) {
+): UseDrawModeReturn {
   const [mode, setMode] = useState<DrawMode>('draw');
   const [drawModeEnabled, setDrawModeEnabled] = useState(false);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Setter générique & explicite
+  /** Change le mode (draw, erase, select) */
   const changeMode = useCallback((newMode: DrawMode) => setMode(newMode), []);
 
-  // Pour faciliter les boutons dans l’UI
+  /** Active/désactive drawMode */
   const toggleDrawMode = useCallback(() => {
     setDrawModeEnabled(prev => !prev);
   }, []);
 
-  // Sécurité: Ne lance jamais deux boucles en même temps
+  /**
+   * Lance l'animation threejs, rafraîchie à chaque frame
+   */
   const startAnimationLoop = useCallback(() => {
     const renderer = rendererRef.current;
     const scene = sceneRef.current;
@@ -35,7 +50,6 @@ export function useDrawMode(
 
     if (!renderer || !scene || !camera) return;
 
-    // Stop préventif (double sécurité)
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
@@ -51,7 +65,6 @@ export function useDrawMode(
     loop();
   }, [rendererRef, sceneRef, cameraRef, controlsRef, onFrame]);
 
-  // Gère le start/stop en lien avec drawModeEnabled
   useEffect(() => {
     if (drawModeEnabled) {
       startAnimationLoop();
@@ -59,8 +72,6 @@ export function useDrawMode(
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
-
-    // Cleanup au démontage
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -69,7 +80,7 @@ export function useDrawMode(
     };
   }, [drawModeEnabled, startAnimationLoop]);
 
-  // Reset propre
+  /** Réinitialise tout */
   const reset = useCallback(() => {
     setDrawModeEnabled(false);
     setMode('draw');
@@ -83,8 +94,9 @@ export function useDrawMode(
     mode,
     drawModeEnabled,
     setMode: changeMode,
+    setDrawModeEnabled,
     toggleDrawMode,
     reset,
-    startAnimationLoop // Accès si besoin d'animer à la demande
+    startAnimationLoop
   };
 }

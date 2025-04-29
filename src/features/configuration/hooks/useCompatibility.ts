@@ -38,7 +38,7 @@ const normalizeParameterType = (type: string): string => {
     inner_widths: 'inner_width',
     inner_depths: 'inner_depth',
     foams: 'foam_type',
-    '2ways': 'two_way_opening'
+    '2ways': 'two_way_opening',
   };
   return map[type] ?? type;
 };
@@ -53,12 +53,14 @@ export function useCompatibility({
   currentValue,
   debugOption
 }: UseCompatibilityProps) {
-  // Mémoïsation du snapshot de valeurs colonne, pour éviter toute mutation sauvage
-  const columnValuesWithDefaults = useMemo(() => (columnValues ? { ...columnValues } : undefined), [columnValues]);
+  // Mémoïsation défensive
+  const columnValuesWithDefaults = useMemo(() => (
+    columnValues ? { ...columnValues } : undefined
+  ), [columnValues]);
 
-  // Options filtrées selon compatibilités
+  // Filtrage dynamique des options selon table d'incompatibilité
   const filteredOptions = useMemo<ParameterItem[] | undefined>(() => {
-    if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !isCheckable(parameterType)) {
+    if (!metadata || !columnValuesWithDefaults || !parameterType || !options?.length || !isCheckable(parameterType)) {
       return options;
     }
     const normCurrentType = normalizeParameterType(parameterType);
@@ -69,17 +71,20 @@ export function useCompatibility({
         if (!val || key === 'body_count') return false;
         const normKey = normalizeParameterType(key);
 
-        const direct = metadata.incompatibilities_by_ref[option.ref]?.[normKey]?.includes(val);
-        const reverse = metadata.incompatibilities_by_ref[val]?.[normCurrentType]?.includes(option.ref);
+        const directArr = metadata.incompatibilities_by_ref[option.ref]?.[normKey];
+        const reverseArr = metadata.incompatibilities_by_ref[val]?.[normCurrentType];
 
-        return !!(direct || reverse);
+        const direct = !!(directArr && Array.isArray(directArr) && directArr.includes(val));
+        const reverse = !!(reverseArr && Array.isArray(reverseArr) && reverseArr.includes(option.ref));
+
+        return direct || reverse;
       });
     });
   }, [metadata, columnValuesWithDefaults, parameterType, options, currentValue]);
 
-  // Mapping option.ref ⇒ raison possible d'incompatibilité
-  const incompatibilityReasons = useMemo(() => {
-    if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !isCheckable(parameterType)) {
+  // Raison textuelle pour chaque option incompatible
+  const incompatibilityReasons = useMemo((): Map<string, string> | null => {
+    if (!metadata || !columnValuesWithDefaults || !parameterType || !options?.length || !isCheckable(parameterType)) {
       return null;
     }
 
@@ -91,8 +96,11 @@ export function useCompatibility({
         if (!val || key === 'body_count') continue;
 
         const normKey = normalizeParameterType(key);
-        const direct = metadata.incompatibilities_by_ref[option.ref]?.[normKey]?.includes(val);
-        const reverse = metadata.incompatibilities_by_ref[val]?.[normType]?.includes(option.ref);
+        const directArr = metadata.incompatibilities_by_ref[option.ref]?.[normKey];
+        const reverseArr = metadata.incompatibilities_by_ref[val]?.[normType];
+
+        const direct = !!(directArr && Array.isArray(directArr) && directArr.includes(val));
+        const reverse = !!(reverseArr && Array.isArray(reverseArr) && reverseArr.includes(option.ref));
 
         if (direct) {
           reasons.set(option.ref, `Incompatible avec ${key} (${val})`);
@@ -108,9 +116,9 @@ export function useCompatibility({
     return reasons;
   }, [metadata, columnValuesWithDefaults, parameterType, options]);
 
-  // Permet le debug exhaustif des règles appliquées pour une option
+  // Mode debug : détails des règles qui s'appliquent à une option spécifique
   const incompatibilityDebug = useMemo<IncompatibilityDebug[]>(() => {
-    if (!metadata || !columnValuesWithDefaults || !parameterType || !options || !debugOption) {
+    if (!metadata || !columnValuesWithDefaults || !parameterType || !options?.length || !debugOption) {
       return [];
     }
 
@@ -123,8 +131,10 @@ export function useCompatibility({
       if (!val || key === 'body_count') continue;
 
       const normKey = normalizeParameterType(key);
+      const directArr = metadata.incompatibilities_by_ref[debugOption]?.[normKey];
+      const reverseArr = metadata.incompatibilities_by_ref[val]?.[normType];
 
-      if (metadata.incompatibilities_by_ref[debugOption]?.[normKey]?.includes(val)) {
+      if (directArr && Array.isArray(directArr) && directArr.includes(val)) {
         debug.push({
           option: debugOption,
           parameter: key,
@@ -134,7 +144,7 @@ export function useCompatibility({
         });
       }
 
-      if (metadata.incompatibilities_by_ref[val]?.[normType]?.includes(debugOption)) {
+      if (reverseArr && Array.isArray(reverseArr) && reverseArr.includes(debugOption)) {
         debug.push({
           option: debugOption,
           parameter: key,
@@ -148,7 +158,7 @@ export function useCompatibility({
     return debug;
   }, [metadata, columnValuesWithDefaults, parameterType, options, debugOption]);
 
-  // Pour l'UI : nombre d'options non affichées car incompatibles
+  // UI : nombre d’options non présentées à cause d'une incompatibilité
   const incompatibleCount = useMemo(() => {
     return options && filteredOptions ? options.length - filteredOptions.length : 0;
   }, [options, filteredOptions]);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, Box as Box3d, ArrowLeft, Save, ArrowRight } from 'lucide-react';
 import { Button } from '../../../../components/ui';
 import { ColumnForm } from '../columns/ColumnForm';
@@ -7,7 +7,7 @@ import { ColumnPreview } from '../columns/ColumnPreview';
 import { useColumnActions } from '../../hooks/useColumnActions';
 import type { Column, StepMetadata, Step2bisFormData } from '../../../../types';
 
-type ExistingColumn = Column & { column_order: number }; // assure la présence de column_order
+type ExistingColumn = Column & { column_order: number };
 
 interface ColumnsStepProps {
   columns: Column[];
@@ -17,15 +17,17 @@ interface ColumnsStepProps {
   columnData: Step2bisFormData;
   onColumnDataChange: (data: Step2bisFormData) => void;
   metadata: StepMetadata | null;
-  onAddColumn: () => void | Promise<void>;        // MAJ : plus d'event ici
+  onAddColumn: () => void | Promise<void>;
   onDeleteColumn: (id: string) => void;
   onDuplicateColumn: (column: Column) => void;
   onBack: () => void;
-  onSave: () => void | Promise<void>;             // MAJ : plus d'event ici
+  onSave: () => void | Promise<void>;
   loading?: boolean;
   isSaving?: boolean;
   error?: string | null;
 }
+
+const MAX_COLUMNS = 5;
 
 export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   columns,
@@ -46,6 +48,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
 }) => {
   const [viewMode] = useState<'grid' | 'list'>('grid');
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
   const { handleSaveColumns, error: saveError, isSaving: internalIsSaving } = useColumnActions({
     columns,
@@ -116,7 +119,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   const errorMessage = externalError || saveError;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" aria-busy={loading || isSavingState}>
       <div className="flex flex-col xl:flex-row gap-8">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-6">
@@ -127,12 +130,12 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
               </h4>
               <span
                 className={`text-xs font-medium px-3 py-1 rounded-full transition-colors duration-200 ${
-                  columns.length >= 5
+                  columns.length >= MAX_COLUMNS
                     ? 'bg-yellow-100 text-yellow-800'
                     : 'bg-green-100 text-green-800'
                 }`}
               >
-                {columns.length}/5
+                {columns.length}/{MAX_COLUMNS}
               </span>
             </div>
           </div>
@@ -153,10 +156,9 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
                 <Button
                   type="button"
                   onClick={() =>
-                    document
-                      .getElementById('column-form')
-                      ?.scrollIntoView({ behavior: 'smooth' })
+                    !editingColumn && formRef.current?.scrollIntoView({ behavior: 'smooth' })
                   }
+                  disabled={!!editingColumn}
                 >
                   <Plus className="h-5 w-5 mr-2" />
                   Ajouter une colonne
@@ -171,7 +173,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
               onDelete={onDeleteColumn}
               onDuplicate={onDuplicateColumn}
               viewMode={viewMode}
-              disabled={columns.length >= 5}
+              disabled={columns.length >= MAX_COLUMNS}
             />
           )}
         </div>
@@ -182,7 +184,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
                 <Plus className="h-5 w-5 text-indigo-600 mr-2" />
                 {editingColumn ? 'Modifier la colonne' : 'Nouvelle colonne'}
               </h4>
-              <div id="column-form">
+              <div id="column-form" ref={formRef}>
                 <ColumnForm
                   data={columnData}
                   onChange={(partial) =>
@@ -209,6 +211,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
           onClick={onBack}
           className="flex items-center"
           disabled={loading || isSavingState}
+          type="button"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour

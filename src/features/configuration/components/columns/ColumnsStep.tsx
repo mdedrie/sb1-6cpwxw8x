@@ -1,10 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Plus,
-  Box as Box3d,
-  X,
-  PanelLeftClose,
-  PanelLeftOpen,
+  Plus, Box as Box3d, X,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { ColumnForm } from '../columns/ColumnForm';
 import { ColumnList } from '../columns/ColumnList';
@@ -25,6 +22,16 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   const [viewMode] = useState<'grid' | 'list'>('grid');
   const [editingColumn, setEditingColumn] = useState<Partial<Column> | null>(null);
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Overlay: show if open && mobile
+  const showOverlay = !isFormCollapsed && mobile;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,9 +68,6 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
     md:w-[400px] 
     `;
 
-  // Pour mobile: background overlay (ferme le panel si clic)
-  const showOverlay = !isFormCollapsed && window.innerWidth < 768;
-
   return (
     <div className="w-full">
       <div className="flex flex-col xl:flex-row relative min-h-[600px] w-full">
@@ -87,6 +91,8 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
                 setIsFormCollapsed(false);
                 setEditingColumn(null); // mode création
               }}
+              disabled={!!editingColumn && !isFormCollapsed}
+              type="button"
             >
               <Plus className="h-4 w-4 mr-1" />
               Ajouter
@@ -115,11 +121,11 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
           />
         </div>
 
-        {/* Overlay mobile (ferme le panel si clic sur fond sombre) */}
-        {!isFormCollapsed && (
+        {/* Overlay mobile */}
+        {showOverlay && (
           <div
             className="fixed z-30 inset-0 bg-black bg-opacity-30 xl:hidden"
-            style={{ pointerEvents: showOverlay ? 'auto' : 'none', opacity: showOverlay ? 1 : 0 }}
+            style={{ pointerEvents: 'auto', opacity: 1 }}
             onClick={() => setIsFormCollapsed(true)}
           />
         )}
@@ -132,6 +138,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
             className="absolute -right-10 top-1/2 -translate-y-1/2 z-10 bg-white rounded-r-lg p-2 shadow-lg border border-gray-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition"
             title={isFormCollapsed ? 'Ouvrir le panneau' : 'Fermer le panneau'}
             aria-label={isFormCollapsed ? 'Ouvrir le panneau' : 'Fermer le panneau'}
+            type="button"
           >
             {isFormCollapsed ? (
               <PanelLeftOpen className="h-5 w-5 text-gray-500 group-hover:text-indigo-600" />
@@ -152,6 +159,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
                 onClick={() => setIsFormCollapsed(true)}
                 className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200"
                 aria-label="Fermer le formulaire"
+                type="button"
               >
                 <X className="h-5 w-5 text-gray-400" />
               </button>
@@ -161,7 +169,10 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
               <ColumnForm
                 data={editingColumn || {}}
                 metadata={metadata}
-                onSubmit={handleSubmit}
+                onSubmit={(e) => {
+                  handleSubmit(e);
+                  setIsFormCollapsed(false); // Pour fermer le panneau après submit
+                }}
                 onCancel={editingColumn ? handleCancelEdit : undefined}
                 onChange={(updated) =>
                   setEditingColumn({
@@ -173,7 +184,6 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
                   })
                 }
                 disabled={false}
-              //  autoFocus // assure focus premier champ
               />
             </div>
           </div>

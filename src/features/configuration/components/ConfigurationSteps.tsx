@@ -9,7 +9,6 @@ interface Step {
   status: StepStatus;
 }
 
-// Optionnel : séparer le type hors de l'interface props
 interface ConfigurationStepsProps {
   steps: Step[];
   onStepClick?: (index: number) => void;
@@ -32,7 +31,7 @@ export const ConfigurationSteps: React.FC<ConfigurationStepsProps> = ({
   }
 
   return (
-    <nav aria-label="Progress" className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4">
+    <nav aria-label="Progression des étapes du configurateur" className="bg-white rounded-lg border border-gray-200 shadow-sm mb-4">
       <ol role="list" className="flex divide-x divide-gray-200">
         {steps.map((step, index) => {
           const { status, name, description } = step;
@@ -41,13 +40,18 @@ export const ConfigurationSteps: React.FC<ConfigurationStepsProps> = ({
           const isClickable = canNavigateToStep(status);
 
           return (
-            <li key={index} className="flex-1 relative"> {/* utilisation d'index pour la key */}
+            <li key={name + index} role="step" className="flex-1 relative">
               <button
                 type="button"
                 onClick={() => isClickable && onStepClick?.(index)}
                 disabled={!isClickable}
                 aria-disabled={!isClickable}
                 aria-current={isCurrent ? 'step' : undefined}
+                aria-label={
+                  isCurrent
+                    ? `Étape courante : ${name}. ${description}`
+                    : (isComplete ? `Étape terminée : ${name}` : `Étape à venir : ${name}`)
+                }
                 tabIndex={isClickable ? 0 : -1}
                 className={[
                   "w-full group relative flex flex-col py-1.5 px-3 text-left transition-colors duration-150",
@@ -58,7 +62,7 @@ export const ConfigurationSteps: React.FC<ConfigurationStepsProps> = ({
               >
                 <div className="flex items-center space-x-1.5">
                   {isComplete ? (
-                    <Check className="h-3.5 w-3.5 text-green-500" aria-label="Complète" />
+                    <Check className="h-3.5 w-3.5 text-green-500" aria-label="Terminée" />
                   ) : (
                     <span className={`text-xs font-semibold ${isCurrent ? 'text-indigo-600' : 'text-gray-400'}`}>
                       {index + 1}

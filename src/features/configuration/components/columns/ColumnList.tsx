@@ -52,6 +52,7 @@ export const ColumnList: React.FC<ColumnListProps> = ({
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (disabled) return; // BLOCK DND si désactivé
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -91,6 +92,7 @@ export const ColumnList: React.FC<ColumnListProps> = ({
       <section
         aria-labelledby="column-list-heading"
         className="relative w-full"
+        aria-busy={disabled}
       >
         {/* Hidden heading for accessibility */}
         <h2 id="column-list-heading" className="sr-only">
@@ -114,6 +116,7 @@ export const ColumnList: React.FC<ColumnListProps> = ({
                     role="listitem"
                     tabIndex={0}
                     aria-label={`Colonne ${column.position} (${column.design ?? ''})`}
+                    aria-disabled={disabled}
                     className={`min-w-[240px] max-w-[240px] flex-shrink-0
                       ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
                       focus:outline-none focus:ring-2 focus:ring-indigo-600`}

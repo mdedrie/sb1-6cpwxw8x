@@ -1,8 +1,6 @@
-// src/features/configuration/components/columns/ColumnCard.tsx
-
 import React, { FC } from 'react';
 import {
-  GripVertical, Trash2, Copy, Image as ImageIcon, Pencil
+  GripVertical, Trash2, Copy, Pencil
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -82,6 +80,8 @@ export const ColumnCard: FC<ColumnCardProps> = ({
     isDragging
   } = useSortable({ id: column.id });
 
+  const dragListeners = disabled ? {} : listeners;
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -89,12 +89,12 @@ export const ColumnCard: FC<ColumnCardProps> = ({
     opacity: isDragging ? 0.8 : 1
   };
 
-  // 🟢 Handler anti-boucle de fallback d’image
+  // Handler anti-boucle image fallback
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement;
-    if (target.dataset.fallback === '1') return; // Empêche la boucle sur fallback aussi bloqué
+    if (target.dataset.fallback === '1') return;
     target.onerror = null;
-    target.src = '/img/design-non-disponible.jpg'; // Privilégie une image de ton public local
+    target.src = '/img/design-non-disponible.jpg';
     target.dataset.fallback = '1';
   };
 
@@ -117,10 +117,10 @@ export const ColumnCard: FC<ColumnCardProps> = ({
         className={`${
           viewMode === 'grid' ? 'aspect-[3/4] mb-4' : 'w-32 h-32 float-left mr-6'
         } bg-gray-100 rounded-lg overflow-hidden relative group`}
-        role="img"
-        aria-label={`Aperçu du design ${column.design}`}
+        role={column.design ? "img" : undefined}
+        aria-label={column.design ? `Aperçu du design ${column.design}` : undefined}
       >
-        {column.design && (
+        {column.design ? (
           <img
             src={`https://icecoreapi-production.up.railway.app/designs/${column.design.toLowerCase()}.jpg`}
             alt={`Design ${column.design}`}
@@ -128,15 +128,19 @@ export const ColumnCard: FC<ColumnCardProps> = ({
             onError={handleImageError}
             data-fallback="0"
           />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-400">
+            <span>Design non disponible</span>
+          </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 flex items-end justify-center p-2 transition-opacity duration-300">
-          <span className="text-white text-sm truncate">{column.design}</span>
+          <span className="text-white text-sm truncate">{column.design || "Non renseigné"}</span>
         </div>
       </div>
 
       <div className={`flex items-center justify-between ${viewMode === 'grid' ? 'mb-4' : 'mb-2'}`}>
         <div className="flex items-center gap-2">
-          <div {...listeners} className="cursor-grab" title="Déplacer la colonne">
+          <div {...dragListeners} className={`cursor-grab ${disabled ? "cursor-not-allowed" : ""}`} title="Déplacer la colonne">
             <GripVertical className="h-5 w-5 text-gray-400 hover:text-indigo-500 transition-colors duration-200" />
           </div>
           <span className="text-xs font-medium text-gray-900 bg-gray-100 px-2 py-0.5 rounded-full">
@@ -155,13 +159,14 @@ export const ColumnCard: FC<ColumnCardProps> = ({
             onClick={() => onEdit(column)}
             icon={<Pencil className="h-4 w-4" />}
             label="Modifier la colonne"
+            disabled={disabled}
           />
           <ActionButton
             onClick={() => column.id && onDelete(column.id)}
             icon={<Trash2 className="h-4 w-4" />}
             label="Supprimer la colonne"
             variant="danger"
-            disabled={!column.id}
+            disabled={disabled || !column.id}
           />
         </div>
       </div>

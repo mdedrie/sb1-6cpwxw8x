@@ -12,6 +12,7 @@ const emptyColumnData: Step2bisFormData = {
   two_way_opening: 'C',
   knob_direction: 'C',
   foam_type: '',
+  body_count: 0, // Ajout pour sécurité
 };
 
 export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
@@ -29,7 +30,7 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
     const requiredFields: (keyof Step2bisFormData)[] = ['thickness', 'inner_height', 'design', 'door'];
     for (const field of requiredFields) {
       if (!columnData[field]) {
-        setFormError('Tous les champs obligatoires ne sont pas remplis.');
+        setFormError(`Le champ "${field}" est obligatoire.`);
         return false;
       }
     }
@@ -37,21 +38,28 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
     return true;
   }, [columnData]);
 
+  // Ajoute une colonne en générant l'id et la position ; force body_count
   const handleAddColumn = useCallback((columns: Column[]) => {
     if (!validateColumnData()) return;
     const newColumn: Column = {
       id: crypto.randomUUID(),
       ...columnData,
       position: columns.length + 1,
+      body_count: columnData.body_count || 1,
     };
     onColumnsChange([...columns, newColumn]);
     resetForm();
   }, [columnData, onColumnsChange, resetForm, validateColumnData]);
 
+  // Met à jour une colonne existante, force body_count
   const handleUpdateColumn = useCallback((columns: Column[]) => {
     if (!editingColumn) return;
     const updatedColumns = columns
-      .map((col) => (col.id === editingColumn.id ? { ...col, ...columnData } : col))
+      .map((col) =>
+        col.id === editingColumn.id
+          ? { ...col, ...columnData, body_count: columnData.body_count || 1 }
+          : col
+      )
       .map((col, idx) => ({ ...col, position: idx + 1 }));
     onColumnsChange(updatedColumns);
     resetForm();
@@ -69,7 +77,8 @@ export function useColumnForm(onColumnsChange: (columns: Column[]) => void) {
     const newColumn: Column = {
       ...column,
       id: crypto.randomUUID(),
-      position: columns.length + 1
+      position: columns.length + 1,
+      body_count: column.body_count || 1,
     };
     onColumnsChange([...columns, newColumn]);
   }, [onColumnsChange]);

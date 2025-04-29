@@ -9,8 +9,8 @@ type SceneSetup = {
   cameraRef: RefObject<THREE.PerspectiveCamera | null>;
   rendererRef: RefObject<THREE.WebGLRenderer | null>;
   controlsRef: RefObject<OrbitControls | null>;
-  effect: OutlineEffect | null;
-  ready: boolean; // Ajout : scène prête
+  effectRef: RefObject<OutlineEffect | null>;
+  ready: boolean;
 };
 
 export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): SceneSetup {
@@ -21,7 +21,7 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
   const effectRef = useRef<OutlineEffect | null>(null);
   const animationIdRef = useRef<number>();
   const resizeObserverRef = useRef<ResizeObserver>();
-  const [ready, setReady] = useState(false); // <- new
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -56,9 +56,9 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
     scene.add(new THREE.AmbientLight(0xffffff, 1.2));
     scene.add(new THREE.GridHelper(10, 10));
 
-    setReady(true); // <-- marquer la scène comme prête
-
     let mounted = true;
+    setReady(true);
+
     const animate = () => {
       if (!mounted) return;
       animationIdRef.current = requestAnimationFrame(animate);
@@ -68,6 +68,7 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
     animate();
 
     resizeObserverRef.current = new ResizeObserver(() => {
+      if (!container || !camera) return;
       const width = container.clientWidth;
       const height = container.clientHeight;
       camera.aspect = width / height;
@@ -78,13 +79,11 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
 
     return () => {
       mounted = false;
-      setReady(false); // <-- marquer la scène NON prête au démontage
+      // setReady(false); // Plus besoin (setError/warnings asynchro supprimé)
       if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
       if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
-
       controls.dispose();
       renderer.dispose();
-
       scene.traverse(obj => {
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose();
@@ -95,11 +94,9 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
           }
         }
       });
-
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
-
       // Clean refs
       sceneRef.current = null;
       cameraRef.current = null;
@@ -114,7 +111,7 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
     cameraRef,
     rendererRef,
     controlsRef,
-    effect: effectRef.current,
-    ready, // <- Ajouté pour protection d’utilisation asynchrone
+    effectRef,
+    ready,
   };
 }

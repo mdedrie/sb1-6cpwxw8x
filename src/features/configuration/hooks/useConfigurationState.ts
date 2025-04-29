@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useConfigurationsApi } from '../../../services/api/hooks/useConfigurationsApi';
+import { useState, useCallback } from 'react';
 import { useEditorApi } from '../../../services/api/hooks/useEditorApi';
-import type { Step1FormData, Step2FormData, Step2bisFormData, Column } from '../../../types';
+import type { Step1FormData, Step2FormData, Column } from '../../../types';
 
 type Step = 'basic' | 'dimensions' | 'columns' | 'volumes' | 'corners';
 
@@ -21,10 +20,10 @@ export function useConfigurationState(configId?: string) {
   const [totalPrice, setTotalPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { createConfiguration, updateConfiguration, setDimensions } = useEditorApi();
 
-  const validateStep1 = useCallback(() => {
+  const validateStep1 = useCallback((): string | null => {
     const name = step1Data.config_name.trim();
     if (!name) return 'Le nom de la configuration est requis';
     if (name.length < 3) return 'Le nom doit contenir au moins 3 caractères';
@@ -32,49 +31,38 @@ export function useConfigurationState(configId?: string) {
     return null;
   }, [step1Data]);
 
-  const validateStep2 = useCallback(() => {
+  const validateStep2 = useCallback((): string | null => {
     if (!step2Data.configuration_description.trim()) {
       return 'La description est requise';
     }
     return null;
   }, [step2Data]);
 
-  const handleCreateConfiguration = useCallback(async () => {
+  const handleCreateConfiguration = useCallback(async (): Promise<string | null> => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
       if (configId) {
-        // Update existing configuration
-        try {
-          await updateConfiguration(configId, {
-            configuration_name: step1Data.config_name.trim().toUpperCase(),
-            is_catalog: step1Data.is_catalog
-          });
-          setCurrentStep('dimensions');
-          return configId;
-        } catch (err) {
-          throw new Error(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
-        }
-      }
-
-      // Create new configuration
-      const error = validateStep1();
-      if (error) {
-        setError(error);
-        return null;
-      }
-
-      try {
-        const newConfigId = await createConfiguration({
+        // Mise à jour existante
+        await updateConfiguration(configId, {
           configuration_name: step1Data.config_name.trim().toUpperCase(),
           is_catalog: step1Data.is_catalog
         });
         setCurrentStep('dimensions');
-        return newConfigId;
-      } catch (err) {
-        throw new Error(err instanceof Error ? err.message : 'Erreur lors de la création');
+        return configId;
       }
+      // Création
+      const errorStep1 = validateStep1();
+      if (errorStep1) {
+        setError(errorStep1);
+        return null;
+      }
+      const newConfigId = await createConfiguration({
+        configuration_name: step1Data.config_name.trim().toUpperCase(),
+        is_catalog: step1Data.is_catalog
+      });
+      setCurrentStep('dimensions');
+      return newConfigId;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors de la création');
       return null;
@@ -83,21 +71,19 @@ export function useConfigurationState(configId?: string) {
     }
   }, [step1Data, configId, createConfiguration, updateConfiguration, validateStep1]);
 
-  const handleUpdateDimensions = useCallback(async () => {
+  const handleUpdateDimensions = useCallback(async (): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-
       if (!configId) {
-        throw new Error('ID de configuration manquant');
-      }
-
-      const error = validateStep2();
-      if (error) {
-        setError(error);
+        setError('ID de configuration manquant');
         return false;
       }
-
+      const errorStep2 = validateStep2();
+      if (errorStep2) {
+        setError(errorStep2);
+        return false;
+      }
       await setDimensions(configId, {
         configuration_name: step1Data.config_name.trim().toUpperCase(),
         configuration_description: step2Data.configuration_description.trim(),
@@ -109,7 +95,6 @@ export function useConfigurationState(configId?: string) {
         is_catalog: step1Data.is_catalog,
         user_id: "00000000-0000-0000-0000-000000000000"
       });
-
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Une erreur est survenue lors de la mise à jour');
@@ -118,6 +103,9 @@ export function useConfigurationState(configId?: string) {
       setLoading(false);
     }
   }, [configId, step1Data, step2Data, validateStep2, setDimensions]);
+
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     currentStep,
     setCurrentStep,
@@ -135,6 +123,7 @@ export function useConfigurationState(configId?: string) {
     handleUpdateDimensions,
     loading,
     setError,
+    clearError,
     error
   };
 }

@@ -29,13 +29,11 @@ export const CornersStep: React.FC<CornersStepProps> = ({
   const [showNomenclature, setShowNomenclature] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
 
-  // Callback appelé UNE FOIS lors du succès de chargement !
   const handlePartsLoaded = useCallback(() => {
     setLoadRequested(false);
     setHasLoaded(true);
   }, []);
 
-  // Setup Three.js scene et caméra (voir ready)
   const {
     sceneRef,
     cameraRef,
@@ -44,7 +42,6 @@ export const CornersStep: React.FC<CornersStepProps> = ({
     ready
   } = useSceneSetup(containerRef);
 
-  // Hooks 3D actifs si scène prête
   const { addPermanentEdge, highlightEdge, resetHighlight } = useEdgeVisualization(
     ready ? sceneRef.current : null
   );
@@ -53,7 +50,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
     configId,
     ready ? sceneRef.current : null,
     addPermanentEdge,
-    loadRequested, // On ne lance que sur clic manuel
+    loadRequested,
     handlePartsLoaded
   );
 
@@ -64,7 +61,6 @@ export const CornersStep: React.FC<CornersStepProps> = ({
     controlsRef
   );
 
-  // Optionnel : lance animate si on veut un mode technique interactif
   useEffect(() => {
     if (drawModeEnabled && ready) {
       startAnimationLoop();
@@ -74,7 +70,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
   const renderError = externalError || partsError;
 
   return (
-    <div className="relative">
+    <div className="relative" aria-busy={loading || isSaving}>
       {/* === Affichage erreur === */}
       {renderError && (
         <div className="absolute inset-0 bg-red-50/80 flex items-center justify-center z-10">
@@ -95,6 +91,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
             }}
             disabled={loadRequested || loading || !ready}
             className="flex items-center"
+            type="button"
           >
             {loading ? (
               <>
@@ -108,8 +105,6 @@ export const CornersStep: React.FC<CornersStepProps> = ({
               </>
             )}
           </Button>
-
-          {/* Message succès ssi chargé sans erreur */}
           {hasLoaded && !loading && !renderError && (
             <p className="text-sm text-green-600">✅ Données chargées avec succès</p>
           )}
@@ -117,6 +112,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
 
         {/* === Scène 3D === */}
         <div
+          id="corners-3d-container"
           ref={containerRef}
           className="w-full h-[600px] bg-gray-50 rounded-lg overflow-hidden"
         />
@@ -129,16 +125,17 @@ export const CornersStep: React.FC<CornersStepProps> = ({
             className="flex items-center"
             aria-pressed={drawModeEnabled}
             disabled={!ready}
+            type="button"
           >
             {drawModeEnabled ? '🎨 Mode normal' : '📐 Mode dessin technique'}
           </Button>
-
           <Button
             variant="secondary"
             onClick={() => setShowNomenclature(prev => !prev)}
             className="flex items-center"
             aria-expanded={showNomenclature}
             disabled={!ready}
+            type="button"
           >
             <Table className="h-4 w-4 mr-2" />
             {showNomenclature ? 'Masquer la nomenclature' : 'Afficher la nomenclature'}
@@ -152,6 +149,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
             onClick={onBack}
             disabled={isSaving}
             className="flex items-center"
+            type="button"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Retour
@@ -160,6 +158,7 @@ export const CornersStep: React.FC<CornersStepProps> = ({
             onClick={onSave}
             disabled={isSaving}
             className="flex items-center"
+            type="button"
           >
             <Save className="mr-2 h-4 w-4" />
             {isSaving ? 'Enregistrement...' : 'Enregistrer'}

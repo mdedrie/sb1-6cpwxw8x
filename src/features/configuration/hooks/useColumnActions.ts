@@ -7,6 +7,7 @@ const RESTRICTED_FIRST_POSITION = ['0', 'Fr', '1r'];
 const RESTRICTED_LAST_POSITION = ['0', 'Fl', '1l'];
 
 interface ExistingColumn {
+  id?: string | number;
   column_order: number | string;
   column_body_count?: number;
   [key: string]: any;
@@ -20,6 +21,9 @@ interface UseColumnActionsProps {
   existingColumns?: ExistingColumn[];
 }
 
+/**
+ * Permet de gérer la validation, ajout, édition et suppression de colonnes sur une config.
+ */
 export function useColumnActions({
   columns,
   configId,
@@ -30,6 +34,9 @@ export function useColumnActions({
   const [isSaving, setIsSaving] = useState(false);
   const { addColumn, deleteColumn } = useWorkflowApi();
 
+  /**
+   * Valide si la colonne peut être placée à la position demandée.
+   */
   const validateColumnPosition = useCallback((column: Column, columns: Column[]): string | null => {
     const isFirstPosition = column.position === 1;
     const isLastPosition = column.position === columns.length;
@@ -44,6 +51,9 @@ export function useColumnActions({
     return null;
   }, []);
 
+  /**
+   * Compare deux colonnes pour voir si elles sont identiques (champ à champ, selon les ID paramètres métier).
+   */
   const compareColumns = useCallback((newColumn: Column, existingColumn: ExistingColumn): boolean => {
     if (!metadata) return false;
     const parameterCategories = {
@@ -71,6 +81,9 @@ export function useColumnActions({
     return true;
   }, [metadata]);
 
+  /**
+   * Valide la position de toutes les colonnes.
+   */
   const validateAllPositions = useCallback((columns: Column[]): string | null => {
     for (const column of columns) {
       const err = validateColumnPosition(column, columns);
@@ -79,7 +92,10 @@ export function useColumnActions({
     return null;
   }, [validateColumnPosition]);
 
-  const handleSaveColumns = useCallback(async () => {
+  /**
+   * Tente de sauvegarder les colonnes, retour True si succès.
+   */
+  const handleSaveColumns = useCallback(async (): Promise<boolean> => {
     if (!configId) {
       setError('ID de configuration manquant');
       return false;
@@ -110,13 +126,11 @@ export function useColumnActions({
         ec => !columns.some(c => String(c.position) === String(ec.column_order))
       );
 
-      // ------ LOG ICI pour debuggage -----
-      console.log('deletedColumns:', deletedColumns);
-
       for (const del of deletedColumns) {
-        console.log(`Suppression colonne (id: ${del.id}, order: ${del.column_order})`, del);
-        await deleteColumn(configId, Number(del.column_order));
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        if (del.id || del.column_order) {
+          await deleteColumn(configId, Number(del.column_order));
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
       }
 
       const parameterCategories = {

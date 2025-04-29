@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ArrowLeft, Save, Box as Box3d, Loader2, AlertCircle, RefreshCw
 } from 'lucide-react';
@@ -7,7 +8,6 @@ import type { ModelingData, Temperature } from '../../../../types';
 import { VolumeVisualizer } from '../volumes/VolumeVisualizer';
 import { VolumeTemperatureTable } from '../volumes/VolumeTemperatureTable';
 import { useVolumesApi } from '../../../../services/api/hooks/useVolumesApi';
-import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface VolumesStepProps {
   configId: string | null;
@@ -41,7 +41,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
     error: apiError,
   } = useVolumesApi();
 
-  // Fonction pour charger volumes + annotations initiales
   const loadVolumes = useCallback(async (shouldGenerate = false) => {
     if (!configId) return;
     try {
@@ -61,7 +60,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
           && data.shapes.some(shape => Array.isArray(shape.parts) && shape.parts.length > 0);
         setHasExistingVolumes(hasShapes);
 
-        // Remplit le mapping température par merge_group_id !
         const volumeAnnotations: Record<string | number, Temperature> = {};
         data.shapes.forEach(shape => {
           shape.parts.forEach(part => {
@@ -140,7 +138,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
     };
   }, [configId, fetchModelingData, fetchVolumeAnnotations]);
 
-  // Sélection température PAR MERGE_GROUP_ID
   const handleVolumeSelect = (mergeGroupId: string | number, temperature: Temperature) => {
     setSelectedVolumes(prev => {
       if (prev[mergeGroupId] === temperature) {
@@ -163,7 +160,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
 
   const missing = allMergeGroupIds.filter(mgid => !selectedVolumes[mgid]);
 
-  // Au SAVE : validation locale, puis appel onSave() du parent uniquement si tout est ok
   const handleSave = async () => {
     if (!configId || !modelingData) return;
     setSaveError(null);
@@ -173,7 +169,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
       return;
     }
 
-    // Construction du mapping volume_id → temperature
     const mergeGroupToVolumeId: Record<string | number, string> = {};
     modelingData.shapes.forEach(shape => {
       shape.parts.forEach(part => {
@@ -202,7 +197,7 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
   };
 
   return (
-    <div>
+    <div aria-busy={isSaving || isLoading || localLoading}>
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         <div className="xl:col-span-9">
           <div className="bg-white rounded-lg shadow p-4">
@@ -219,6 +214,7 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
                     onClick={() => loadVolumes(true)}
                     disabled={isLoading || localLoading}
                     className="flex items-center text-sm"
+                    type="button"
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isLoading || localLoading ? 'animate-spin' : ''}`} />
                     Regénérer
@@ -250,6 +246,7 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
                   onClick={() => loadVolumes(true)}
                   disabled={isLoading || localLoading}
                   className="flex items-center"
+                  type="button"
                 >
                   <Box3d className="mr-2 h-4 w-4" />
                   Générer les volumes
@@ -285,7 +282,8 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
                 variant="secondary"
                 onClick={onBack}
                 className="flex items-center"
-                disabled={isLoading || isSaving || localLoading}
+                disabled={isSaving || isLoading || localLoading}
+                type="button"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Retour

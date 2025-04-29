@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useWorkflowApi } from '../../../services/api/hooks';
 import type { StepMetadata } from '../../../types';
 
+/**
+ * Récupère les metadata du workflow.
+ * @param filters (optionnel) : tableau de filtres, typiquement des string refs
+ */
 export function useMetadata(filters?: string[]) {
   const [metadata, setMetadata] = useState<StepMetadata | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +33,10 @@ export function useMetadata(filters?: string[]) {
 
     fetchMetadata();
     return () => { mounted = false; };
-  }, [filters, getMetadata]);
+  // use JSON.stringify to break unwanted renders in case filters is a new ref each time
+  }, [JSON.stringify(filters), getMetadata]);
 
-  return { metadata, loading, error };
+  const clearError = useCallback(() => setError(null), []);
+
+  return { metadata, loading, error, clearError };
 }

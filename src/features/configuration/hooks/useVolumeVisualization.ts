@@ -15,11 +15,11 @@ interface VolumeColors {
 }
 
 export function useVolumeStyles() {
-  const COLORS: Record<'positive' | 'negative' | 'undefined' | 'hover', VolumeColors | { fill: string; border: string; icon?: string; hoverFill?: string; }> = useMemo(() => ({
+  const COLORS: Record<'positive' | 'negative' | 'undefined' | 'hover', VolumeColors> = useMemo(() => ({
     positive: { fill: '#ECFDF5', border: '#10B981', icon: '🔥', hoverFill: '#D1FAE5' },
     negative: { fill: '#EFF6FF', border: '#3B82F6', icon: '❄️', hoverFill: '#DBEAFE' },
     undefined: { fill: '#F9FAFB', border: '#E5E7EB', icon: '❓', hoverFill: '#F3F4F6' },
-    hover: { fill: '#F3F4F6', border: '#4B5563' }
+    hover: { fill: '#F3F4F6', border: '#4B5563', icon: '', hoverFill: '#F3F4F6' }
   }), []);
 
   const CONSTANTS = useMemo(() => ({
@@ -32,7 +32,6 @@ export function useVolumeStyles() {
   }), []);
 
   const getVolumeStyles = ({ isHovered, temperature }: VolumeStylesConfig) => {
-    // Typescript safe
     const colors = COLORS[temperature ?? 'undefined'];
     const fillColor = isHovered
       ? (colors.hoverFill || COLORS.hover.fill)
@@ -40,8 +39,7 @@ export function useVolumeStyles() {
     const strokeColor = isHovered
       ? COLORS.hover.border
       : colors.border;
-    const icon = colors.icon ?? '';
-
+    const icon = colors.icon;
     return { fillColor, strokeColor, icon };
   };
 

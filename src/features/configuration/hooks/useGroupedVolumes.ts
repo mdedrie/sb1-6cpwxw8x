@@ -7,12 +7,12 @@ interface VolumePart {
   volume: number;
   y_start: number;
   merge_group_id: number | string;
-  volume_id: string; // référence technique
+  volume_id: string;
 }
 
 interface VolumeGroup {
-  mergeGroupId: number | string;        // Nouvelle clé logique IHM
-  volumeId: string;                     // Référence DB/back technique
+  mergeGroupId: number | string;
+  volumeId: string;
   columnIndex: number;
   parts: VolumePart[];
   x: number;
@@ -50,17 +50,12 @@ const CONSTANTS = {
 
 const roundToPixel = (value: number): number => Math.round(value * 2) / 2;
 
-// ---------
-// PRINCIPAL : regroupe par merge_group_id (qui est UNIQUE pour l'affichage/gestion IHM)
-// Température partagée par merge_group_id !
-// selectedVolumes est donc Record<merge_group_id, Temperature>
-// ---------
 export function useGroupedVolumes(
   shapes: ModelingData['shapes'],
   selectedVolumes?: Record<number | string, Temperature>
-) {
+): VolumeGroup[] {
   return useMemo(() => {
-    if (!shapes) return [];
+    if (!Array.isArray(shapes) || shapes.length === 0) return [];
 
     let currentX = 0;
     const volumes: VolumeGroup[] = [];
@@ -74,28 +69,29 @@ export function useGroupedVolumes(
       shape.parts.forEach(part => {
         const mgid = part.merge_group_id;
         if (!groupMap.has(mgid)) {
-          // On prend le volumeId du premier part du groupe (tous les parts du groupe ont en principe le même volumeId si logique back OK)
           groupMap.set(mgid, { parts: [], volumeId: part.volume_id });
         }
         groupMap.get(mgid)!.parts.push(part);
       });
 
-      // On génère UN groupe par merge_group_id (ET colonne)
       Array.from(groupMap.entries()).forEach(([mergeGroupId, { parts, volumeId }]) => {
-        const yStart = Math.min(...parts.map(p => p.y_start));
-        const yEnd = Math.max(...parts.map(p => p.y_start + p.height));
-        const height = (yEnd - yStart) * CONSTANTS.SCALE;
+        // Manage empty case : fallback to 0
+        const yStartArr = parts.map(p => p.y_start);
+        const yEndArr = parts.map(p => p.y_start + p.height);
+        const yStart = yStartArr.length ? Math.min(...yStartArr) : 0;
+        const yEnd = yEndArr.length ? Math.max(...yEndArr) : 0;
+        const height = Math.abs(yEnd - yStart) * CONSTANTS.SCALE;
 
         volumes.push({
-          mergeGroupId,       // Clé ID d'affichage
-          volumeId,           // Référence volume technique/back
-          columnIndex,        // Pour affichage/ordre
+          mergeGroupId,
+          volumeId,
+          columnIndex,
           parts,
           x: roundToPixel(currentX + CONSTANTS.PADDING),
           y: roundToPixel(CONSTANTS.PADDING + yStart * CONSTANTS.SCALE + CONSTANTS.GROUP_GAP),
           width: roundToPixel(columnWidth - CONSTANTS.GAP),
-          height: roundToPixel(height - CONSTANTS.GROUP_GAP * 2),
-          temperature: selectedVolumes?.[mergeGroupId],
+          height: roundToPixel(Math.max(0, height - CONSTANTS.GROUP_GAP * 2)),
+          temperature: selectedVolumes?.[String(mergeGroupId)],
         });
       });
 

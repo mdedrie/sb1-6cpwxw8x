@@ -69,7 +69,6 @@ export function useCornersVisualization({
       if (!mounted) return;
       animationFrameRef.current = requestAnimationFrame(animate);
       controls.update();
-
       renderer.clear();
       if (drawModeRef.current && effect) {
         effect.render(scene, camera);
@@ -82,9 +81,9 @@ export function useCornersVisualization({
     const resizeObserver = new ResizeObserver(() => {
       if (!container || !cameraRef.current || !rendererRef.current) return;
       const { clientWidth, clientHeight } = container;
-      camera.aspect = clientWidth / clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(clientWidth, clientHeight);
+      cameraRef.current.aspect = clientWidth / clientHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(clientWidth, clientHeight);
     });
     resizeObserver.observe(container);
 
@@ -102,77 +101,102 @@ export function useCornersVisualization({
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
+    setLoading(true);
+    setError(null);
+    try {
+      meshesRef.current.forEach(obj => {
+        scene.remove(obj);
+        disposeObject(obj);
+      });
+      meshesRef.current = [];
 
-    meshesRef.current.forEach(obj => {
-      scene.remove(obj);
-      disposeObject(obj);
-    });
-    meshesRef.current = [];
+      permanentEdgesRef.current.forEach(line => {
+        scene.remove(line);
+        disposeObject(line);
+      });
+      permanentEdgesRef.current = [];
 
-    permanentEdgesRef.current.forEach(line => {
-      scene.remove(line);
-      disposeObject(line);
-    });
-    permanentEdgesRef.current = [];
+      corners.forEach(corner => {
+        const thickness = 0.1;
+        const width = corner.type === 't_section' ? 0.3 : thickness;
+        const depth = corner.type === 't_section' ? 0.3 : thickness;
+        const height = Math.max(0.1, corner.height);
+        const group = new THREE.Group();
 
-    corners.forEach(corner => {
-      const thickness = 0.1;
-      const width = corner.type === 't_section' ? 0.3 : thickness;
-      const depth = corner.type === 't_section' ? 0.3 : thickness;
-      const height = Math.max(0.1, corner.height);
-      const group = new THREE.Group();
+        const x = corner.position === 'left' ? -2 + thickness / 2 : 2 - thickness / 2;
+        const y = height / 2;
+        const z = 0;
 
-      const x = corner.position === 'left' ? -2 + thickness / 2 : 2 - thickness / 2;
-      const y = height / 2;
-      const z = 0;
-
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(width, height, depth),
-        new THREE.MeshLambertMaterial({ color: 0xcccccc })
-      );
-      mesh.position.set(x, y, z);
-      group.add(mesh);
-
-      if (corner.type === 't_section') {
-        const cross = new THREE.Mesh(
-          new THREE.BoxGeometry(thickness, height, 0.3),
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(width, height, depth),
           new THREE.MeshLambertMaterial({ color: 0xcccccc })
         );
-        cross.position.set(x + (corner.position === 'left' ? 0.2 : -0.2), y, z);
-        group.add(cross);
-      }
+        mesh.position.set(x, y, z);
+        group.add(mesh);
 
-      const edgeLine = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(corner.position === 'left' ? -2 : 2, 0, 0),
-          new THREE.Vector3(corner.position === 'left' ? -2 : 2, height, 0)
-        ]),
-        new THREE.LineBasicMaterial({ color: corner.type === 'angle' ? 0x00bfff : 0xffcc00 })
-      );
-      scene.add(edgeLine);
-      permanentEdgesRef.current.push(edgeLine);
+        if (corner.type === 't_section') {
+          const cross = new THREE.Mesh(
+            new THREE.BoxGeometry(thickness, height, 0.3),
+            new THREE.MeshLambertMaterial({ color: 0xcccccc })
+          );
+          cross.position.set(x + (corner.position === 'left' ? 0.2 : -0.2), y, z);
+          group.add(cross);
+        }
 
-      if (corner.type === 't_section') {
-        const horiz = new THREE.Line(
+        const edgeLine = new THREE.Line(
           new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(x, height / 2, -thickness),
-            new THREE.Vector3(x, height / 2, thickness)
+            new THREE.Vector3(corner.position === 'left' ? -2 : 2, 0, 0),
+            new THREE.Vector3(corner.position === 'left' ? -2 : 2, height, 0)
           ]),
-          new THREE.LineBasicMaterial({ color: 0xff0000 })
+          new THREE.LineBasicMaterial({ color: corner.type === 'angle' ? 0x00bfff : 0xffcc00 })
         );
-        scene.add(horiz);
-        permanentEdgesRef.current.push(horiz);
-      }
+        scene.add(edgeLine);
+        permanentEdgesRef.current.push(edgeLine);
 
-      group.children.forEach(obj => {
-        if (obj instanceof THREE.Mesh) meshesRef.current.push(obj);
+        if (corner.type === 't_section') {
+          const horiz = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(x, height / 2, -thickness),
+              new THREE.Vector3(x, height / 2, thickness)
+            ]),
+            new THREE.LineBasicMaterial({ color: 0xff0000 })
+          );
+          scene.add(horiz);
+          permanentEdgesRef.current.push(horiz);
+        }
+
+        group.children.forEach(obj => {
+          if (obj instanceof THREE.Mesh) meshesRef.current.push(obj);
+        });
+        scene.add(group);
       });
 
-      scene.add(group);
-    });
-
-    setLoading(false);
-    setError(null);
+      setLoading(false);
+      setError(null);
+    } catch (err) {
+      setError((err instanceof Error ? err.message : String(err)) || 'Erreur lors de la génération des coins');
+      setLoading(false);
+    }
+    // Clean-up groupe
+    return () => {
+      const scene = sceneRef.current;
+      if (!scene) return;
+      meshesRef.current.forEach(obj => {
+        scene.remove(obj);
+        disposeObject(obj);
+      });
+      meshesRef.current = [];
+      permanentEdgesRef.current.forEach(line => {
+        scene.remove(line);
+        disposeObject(line);
+      });
+      permanentEdgesRef.current = [];
+      tempHighlightsRef.current.forEach(line => {
+        scene.remove(line);
+        disposeObject(line);
+      });
+      tempHighlightsRef.current = [];
+    };
   }, [corners, disposeObject]);
 
   const highlightCorner = useCallback((corner: Corner) => {

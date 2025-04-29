@@ -29,7 +29,6 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
-    // Exemple de validation locale (ajuste à ton besoin réel)
     if (!data.configuration_description.trim() || data.configuration_description.length < 3) {
       setValidationError("Merci de renseigner une description de la configuration (3 caractères minimum).");
       return;
@@ -38,7 +37,13 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4"
+      aria-busy={loading}
+      noValidate
+      data-testid="dimensions-step-form"
+    >
       {(isExistingConfig || configId) && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-start">
           <Info className="h-5 w-5 text-blue-500 mt-0.5 mr-3" />
@@ -56,27 +61,35 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
       )}
 
       {(validationError || error) && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center text-red-700 outline-none w-full" role="alert" aria-live="assertive">
+        <div
+          className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center text-red-700 outline-none w-full"
+          role="alert"
+          aria-live="assertive"
+          id="configuration_description_error"
+        >
           <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
           <span>{validationError ?? error}</span>
         </div>
       )}
 
-      <FormField
-        label="Description"
-        id="configuration_description"
-        value={data.configuration_description}
-        onChange={(e) =>
-          onChange({ ...data, configuration_description: e.target.value })
-        }
-        placeholder="Décrivez les caractéristiques principales de cette configuration..."
-        textarea
-        className="transition-all duration-200 focus:ring-2"
-        required
-        aria-required="true"
-        aria-label="Description de la configuration"
-        error={validationError ?? error ?? undefined}
-      />
+      <fieldset disabled={loading} className="border-none p-0 m-0">
+        <FormField
+          label="Description"
+          id="configuration_description"
+          value={data.configuration_description}
+          onChange={(e) =>
+            onChange({ ...data, configuration_description: e.target.value })
+          }
+          placeholder="Décrivez les caractéristiques principales de cette configuration..."
+          textarea
+          className="transition-all duration-200 focus:ring-2"
+          required
+          aria-required="true"
+          aria-label="Description de la configuration"
+          error={validationError ?? error ?? undefined}
+          aria-describedby={validationError || error ? "configuration_description_error" : undefined}
+        />
+      </fieldset>
 
       <div className="flex justify-between mt-8">
         <Button
@@ -84,6 +97,7 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
           variant="secondary"
           className="flex items-center"
           onClick={onBack}
+          disabled={loading}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour

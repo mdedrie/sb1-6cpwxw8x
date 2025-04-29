@@ -46,15 +46,22 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({ columns, metadata 
       
       return {
         totalThickness: acc.totalThickness + thickness,
-        minHeight: acc.minHeight === 0 ? height : Math.min(acc.minHeight, height),
+        minHeight: Math.min(acc.minHeight, height),
         maxHeight: Math.max(acc.maxHeight, height),
         maxWidth: Math.max(acc.maxWidth, width),
         maxDepth: Math.max(acc.maxDepth, depth),
       };
-    }, { totalThickness: 0, minHeight: 0, maxHeight: 0, maxWidth: 0, maxDepth: 0 });
+    }, { totalThickness: 0, minHeight: Infinity, maxHeight: 0, maxWidth: 0, maxDepth: 0 });
   }, [columns, metadata]);
 
   if (!columns.length) return null;
+
+  // Correction UX pour minHeight
+  const minHeight =
+    dimensions.minHeight === Infinity || dimensions.minHeight === 0
+      ? '—'
+      : String(dimensions.minHeight);
+  const maxHeight = dimensions.maxHeight === 0 ? '—' : String(dimensions.maxHeight);
 
   return (
     <div className="mb-6 p-4 bg-gradient-to-br from-indigo-50 to-white rounded-xl border border-indigo-100 shadow-sm w-full">
@@ -62,22 +69,22 @@ export const ColumnPreview: React.FC<ColumnPreviewProps> = ({ columns, metadata 
         <StatCard
           icon={<Ruler className="h-4 w-4 text-indigo-600" />}
           label="Épaisseur totale"
-          value={`${dimensions.totalThickness} cm`}
+          value={`${dimensions.totalThickness > 0 ? dimensions.totalThickness : '—'} cm`}
         />
         <StatCard
           icon={<AlertCircle className="h-4 w-4 text-indigo-600" />}
           label="Hauteur min/max"
-          value={`${dimensions.minHeight}/${dimensions.maxHeight} cm`}
+          value={`${minHeight}/${maxHeight} cm`}
         />
         <StatCard
           icon={<Ruler className="h-4 w-4 text-indigo-600" />}
           label="Largeur max"
-          value={`${dimensions.maxWidth} cm`}
+          value={`${dimensions.maxWidth > 0 ? dimensions.maxWidth : '—'} cm`}
         />
         <StatCard
           icon={<Ruler className="h-4 w-4 text-indigo-600" />}
           label="Profondeur max"
-          value={`${dimensions.maxDepth} cm`}
+          value={`${dimensions.maxDepth > 0 ? dimensions.maxDepth : '—'} cm`}
         />
       </div>
     </div>
