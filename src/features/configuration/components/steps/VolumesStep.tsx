@@ -65,9 +65,11 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
         const volumeAnnotations: Record<string | number, Temperature> = {};
         data.shapes.forEach(shape => {
           shape.parts.forEach(part => {
-            if (part.merge_group_id !== undefined 
-                && part.volume_id // ← pour l'appel API, voir plus bas
-                && annotations[part.volume_id]) {
+            if (
+              part.merge_group_id !== undefined &&
+              part.volume_id &&
+              annotations[part.volume_id]
+            ) {
               volumeAnnotations[part.merge_group_id] = annotations[part.volume_id];
             }
           });
@@ -87,7 +89,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
     }
   }, [configId, generateVolumes, fetchModelingData, fetchVolumeAnnotations]);
 
-  // Sur le mount et quand configId change
   useEffect(() => {
     mounted.current = true;
     const checkVolumes = async () => {
@@ -109,9 +110,11 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
           const volumeAnnotations: Record<string | number, Temperature> = {};
           data.shapes.forEach(shape => {
             shape.parts.forEach(part => {
-              if (part.merge_group_id !== undefined 
-                  && part.volume_id
-                  && annotations[part.volume_id]) {
+              if (
+                part.merge_group_id !== undefined &&
+                part.volume_id &&
+                annotations[part.volume_id]
+              ) {
                 volumeAnnotations[part.merge_group_id] = annotations[part.volume_id];
               }
             });
@@ -132,7 +135,9 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
       }
     };
     checkVolumes();
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, [configId, fetchModelingData, fetchVolumeAnnotations]);
 
   // Sélection température PAR MERGE_GROUP_ID
@@ -146,7 +151,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
     });
   };
 
-  // Tous les merge_group_id visibles dans la structure
   const allMergeGroupIds: Array<string | number> = modelingData
     ? Array.from(
         new Set(
@@ -159,8 +163,7 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
 
   const missing = allMergeGroupIds.filter(mgid => !selectedVolumes[mgid]);
 
-  // Au SAVE : Remonter vers l’API un mapping volume_id → temperature
-  // (nécessite de savoir, pour chaque merge_group_id cliqué, la liste (unique) des volume_id associés)
+  // Au SAVE : validation locale, puis appel onSave() du parent uniquement si tout est ok
   const handleSave = async () => {
     if (!configId || !modelingData) return;
     setSaveError(null);
@@ -171,7 +174,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
     }
 
     // Construction du mapping volume_id → temperature
-    // Pour chaque group_id affiché, on prend le volume_id de la première part du groupe (supposé unique par groupe)
     const mergeGroupToVolumeId: Record<string | number, string> = {};
     modelingData.shapes.forEach(shape => {
       shape.parts.forEach(part => {
@@ -263,7 +265,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
                   <VolumeVisualizer
                     data={modelingData}
                     selectedVolumes={selectedVolumes}
-                    // Attention : key/prop pilotées par mergeGroupId dans VolumeVisualizer
                     onVolumeSelect={handleVolumeSelect}
                     onLoad={() => setModelingLoaded(true)}
                   />
@@ -278,29 +279,29 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
                 )}
               </div>
             )}
-          </div>
 
-          <div className="flex justify-between mt-4">
-            <Button
-              variant="secondary"
-              onClick={onBack}
-              className="flex items-center"
-              disabled={isLoading || isSaving || localLoading}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Retour
-            </Button>
-            <Button
-              onClick={handleSave}
-              type="button"
-              className="flex items-center"
-              disabled={isSaving || isLoading || localLoading}
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {(isSaving || isLoading || localLoading)
-                ? 'Enregistrement...'
-                : 'Enregistrer'}
-            </Button>
+            <div className="flex justify-between mt-4">
+              <Button
+                variant="secondary"
+                onClick={onBack}
+                className="flex items-center"
+                disabled={isLoading || isSaving || localLoading}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Retour
+              </Button>
+              <Button
+                onClick={handleSave}
+                type="button"
+                className="flex items-center"
+                disabled={isSaving || isLoading || localLoading}
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {(isSaving || isLoading || localLoading)
+                  ? 'Enregistrement...'
+                  : 'Enregistrer'}
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -309,7 +310,6 @@ export const VolumesStep: React.FC<VolumesStepProps> = ({
             data={modelingData}
             selectedVolumes={selectedVolumes}
             onVolumeSelect={handleVolumeSelect}
-            // Optionnel: adapte VolumeTemperatureTable pour column by merge_group_id aussi!
           />
         </div>
       </div>

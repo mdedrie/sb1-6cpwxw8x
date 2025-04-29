@@ -58,7 +58,6 @@ export function useColumnActions({
       knob_direction: 'knobs',
       foam_type: 'foams',
     } as const;
-    // --- PATCH ici ---
     if (String(newColumn.position) !== String(existingColumn.column_order)) return false;
     if ((newColumn.body_count || 1) !== existingColumn.column_body_count) return false;
     for (const [field, category] of Object.entries(parameterCategories)) {
@@ -90,14 +89,14 @@ export function useColumnActions({
       setError(positionError);
       return false;
     }
-    // PATCH 2 (tri robustifié)
     const sortedExistingColumns = [...existingColumns].sort(
       (a, b) => Number(a.column_order) - Number(b.column_order)
     );
-    const hasChanges = columns.some((col, idx) => {
-      const existingColumn = sortedExistingColumns[idx];
-      return !existingColumn || !compareColumns(col, existingColumn);
-    });
+    const hasChanges = columns.length !== existingColumns.length ||
+      columns.some((col, idx) => {
+        const existingColumn = sortedExistingColumns[idx];
+        return !existingColumn || !compareColumns(col, existingColumn);
+      });
     if (!hasChanges) {
       console.log('No changes detected in columns, skipping save');
       return true;
@@ -107,12 +106,16 @@ export function useColumnActions({
       setIsSaving(true);
       setError(null);
 
-      // PATCH 3 sur la comparaison !
       const deletedColumns = existingColumns.filter(
         ec => !columns.some(c => String(c.position) === String(ec.column_order))
       );
+
+      // ------ LOG ICI pour debuggage -----
+      console.log('deletedColumns:', deletedColumns);
+
       for (const del of deletedColumns) {
-        await deleteColumn(configId, Number(del.column_order)); // 👈 conversion explicite ici
+        console.log(`Suppression colonne (id: ${del.id}, order: ${del.column_order})`, del);
+        await deleteColumn(configId, Number(del.column_order));
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 

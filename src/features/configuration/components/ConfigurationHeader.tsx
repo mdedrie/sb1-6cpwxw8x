@@ -21,8 +21,8 @@ export const ConfigurationHeader: React.FC<ConfigurationHeaderProps> = ({
       ? new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(totalPrice)
       : null;
 
-  // Troncature ID pour affichage élégant sur mobile
-  const truncateId = (id?: string | null, max = 16) => {
+  // Fonction pour tronquer l'identifiant (max=16 par défaut)
+  const truncateId = (id: string | null | undefined, max = 16) => {
     if (!id) return '';
     return id.length > max ? id.substring(0, max - 3) + '...' : id;
   };
@@ -38,8 +38,11 @@ export const ConfigurationHeader: React.FC<ConfigurationHeaderProps> = ({
       <div className="flex items-center min-w-0 flex-1 gap-x-3">
         <Settings className="h-5 w-5 text-indigo-600 shrink-0" aria-hidden="true" />
         <div className="min-w-0">
-          <h1 id="configuration-title" className="truncate text-base sm:text-lg font-semibold text-gray-900">
-            {title || 'Configuration'}
+          <h1
+            id="configuration-title"
+            className="truncate text-base sm:text-lg font-semibold text-gray-900"
+          >
+            {title}
           </h1>
           {subtitle && (
             <p className="text-xs text-gray-500 truncate">{subtitle}</p>
@@ -51,7 +54,7 @@ export const ConfigurationHeader: React.FC<ConfigurationHeaderProps> = ({
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <div
           className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono font-medium bg-gray-50 text-gray-500 max-w-[10rem] overflow-hidden"
-          title={configId ?? undefined}
+          title={configId || ''}
           aria-label={configId ? `Identifiant : ${configId}` : "En attente d'identifiant"}
         >
           {configId ? (

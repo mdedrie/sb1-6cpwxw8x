@@ -27,11 +27,23 @@ export const NomenclatureTable: React.FC<NomenclatureTableProps> = ({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
+          {nomenclature.length === 0 && (
+            <tr>
+              <td colSpan={7} className="text-center text-gray-400 py-6">
+                Aucune arête à afficher
+              </td>
+            </tr>
+          )}
           {nomenclature.map((part, partIndex) => 
             part.edges?.map((edge: Edge, edgeIndex: number) => {
               const dimension = edge.height || edge.length || '-';
               const rowId = `edge-${partIndex}-${edgeIndex}`;
-              
+              const uidStr = typeof part.part_uid === 'string'
+                ? part.part_uid.slice(0, 6)
+                : typeof part.part_uid === 'number'
+                ? part.part_uid.toString().slice(0, 6)
+                : '-';
+
               return (
                 <tr
                   key={rowId}
@@ -42,7 +54,7 @@ export const NomenclatureTable: React.FC<NomenclatureTableProps> = ({
                 >
                   <td className="px-3 py-2">{part.column_order}</td>
                   <td className="px-3 py-2">{part.column_type}</td>
-                  <td className="px-3 py-2 font-mono">{part.part_uid?.slice(0, 6) || '-'}</td>
+                  <td className="px-3 py-2 font-mono">{uidStr}</td>
                   <td className="px-3 py-2">{edge.type}</td>
                   <td className="px-3 py-2">{edge.position || '-'}</td>
                   <td className="px-3 py-2">{dimension}</td>

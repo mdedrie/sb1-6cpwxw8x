@@ -17,11 +17,11 @@ interface ColumnsStepProps {
   columnData: Step2bisFormData;
   onColumnDataChange: (data: Step2bisFormData) => void;
   metadata: StepMetadata | null;
-  onAddColumn: (e: React.FormEvent) => void;
+  onAddColumn: () => void | Promise<void>;        // MAJ : plus d'event ici
   onDeleteColumn: (id: string) => void;
   onDuplicateColumn: (column: Column) => void;
   onBack: () => void;
-  onSave: (e: React.FormEvent) => void;
+  onSave: () => void | Promise<void>;             // MAJ : plus d'event ici
   loading?: boolean;
   isSaving?: boolean;
   error?: string | null;
@@ -39,14 +39,14 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   onDeleteColumn,
   onDuplicateColumn,
   onBack,
-  onSave: handleSaveSuccess,
+  onSave,
   loading,
   isSaving: externalIsSaving,
   error: externalError
 }) => {
   const [viewMode] = useState<'grid' | 'list'>('grid');
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
-  // On transmet bien existingColumns qui a toujours column_order
+
   const { handleSaveColumns, error: saveError, isSaving: internalIsSaving } = useColumnActions({
     columns,
     onColumnsChange,
@@ -55,12 +55,11 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
     existingColumns
   });
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async () => {
     try {
       const success = await handleSaveColumns();
       if (success) {
-        await handleSaveSuccess(e);
+        await onSave();
       }
     } catch (err) {
       console.error('Failed to save columns:', err);
@@ -101,8 +100,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = () => {
     if (editingColumn) {
       const updatedColumns = columns.map(col =>
         col.id === editingColumn.id ? { ...col, ...columnData } : col
@@ -110,7 +108,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
       onColumnsChange(updatedColumns);
       handleCancelEdit();
     } else {
-      onAddColumn(e);
+      onAddColumn();
     }
   };
 

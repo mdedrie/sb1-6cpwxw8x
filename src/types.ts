@@ -1,4 +1,25 @@
-export type Coord3 = [number, number, number]; // <-- Ajout ICI
+// Coordonnée 3D
+export type Coord3 = [number, number, number];
+
+// Réutilisé à plusieurs endroits
+export type ReverseCompatibilities = {
+  [key: string]: {
+    [key: string]: {
+      [key: string]: string[];
+    };
+  };
+};
+
+// ------------------------------
+// PARAMÉTRAGE ET MÉTADATA
+// ------------------------------
+
+export interface ParameterItem {
+  id: number;
+  ref: string;
+  desc: string;
+  dim?: number;
+}
 
 export interface StepMetadata {
   parameters_by_category: {
@@ -13,33 +34,15 @@ export interface StepMetadata {
     inner_widths: ParameterItem[];
     inner_depths: ParameterItem[];
   };
-  incompatibilities_by_ref: {
-    [key: string]: {
-      [key: string]: string[];
-    };
-  };
-  compatibilities_by_parameter: {
-    [key: string]: {
-      [key: string]: {
-        [key: string]: string[];
-      };
-    };
-  };
-  incompatibilities_by_parameter: {
-    [key: string]: {
-      [key: string]: {
-        [key: string]: string[];
-      };
-    };
-  };
-  reverse_compatibilities: {
-    [key: string]: {
-      [key: string]: {
-        [key: string]: string[];
-      };
-    };
-  };
+  incompatibilities_by_ref: Record<string, Record<string, string[]>>;
+  compatibilities_by_parameter: Record<string, Record<string, Record<string, string[]>>>;
+  incompatibilities_by_parameter: Record<string, Record<string, Record<string, string[]>>>;
+  reverse_compatibilities: ReverseCompatibilities;
 }
+
+// ------------------------------
+// GÉOMÉTRIE
+// ------------------------------
 
 export interface Edge {
   type: 'vertical' | 'horizontal';
@@ -74,15 +77,12 @@ export interface Part {
   position?: { x: number; y: number; z: number };
   dimensions?: { width: number; height: number; depth: number };
   column_type?: string; // utilisé pour la nomenclature
-  // ! Ajout :
-  reverse_compatibilities?: { // <-- MANQUANT dans ta version ci-dessus
-    [key: string]: {
-      [key: string]: {
-        [key: string]: string[];
-      };
-    };
-  };
+  reverse_compatibilities?: ReverseCompatibilities;
 }
+
+// ------------------------------
+// MODÉLISATION ET FORMULAIRES
+// ------------------------------
 
 export type Temperature = 'positive' | 'negative';
 
@@ -97,7 +97,6 @@ export interface Corner {
 export interface Step5FormData {
   corners: Corner[];
 }
-
 
 export interface Configuration {
   id?: string;
@@ -117,15 +116,7 @@ export interface Configuration {
   } | null;
 }
 
-export interface ParameterItem {
-  id: number;
-  ref: string;
-  desc: string;
-  dim?: number;
-}
-
 export type StepStatus = 'current' | 'complete' | 'upcoming';
-
 
 export interface Step1FormData {
   config_name: string;
@@ -155,7 +146,7 @@ export interface Step2bisFormData {
 
 export interface ModelingData {
   shapes: Shape[];
-  selectedVolumes?: Record<number, 'positive' | 'negative'>;
+  selectedVolumes?: Record<number, Temperature>;
 }
 
 export interface ShapeParameter {
@@ -218,6 +209,7 @@ export interface ShapesResponse {
   shapes: Shape[];
   configurationId: string;
 }
+
 export interface Column {
   id: string;
   thickness: string;
@@ -233,4 +225,5 @@ export interface Column {
   body_id?: number;
   position: number;
   body_count?: number;
+  column_order?: number; 
 }

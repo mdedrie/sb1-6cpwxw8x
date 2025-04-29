@@ -7,6 +7,8 @@ interface BasicInfoStepProps {
   data: Step1FormData;
   onChange: (data: Step1FormData) => void;
   onNext: () => void | Promise<void>;
+  loading?: boolean;           // Ajout optionnel pour feedback parent
+  error?: string;              // Ajout optionnel pour feedback parent
   configId?: string;
   isExistingConfig?: boolean;
 }
@@ -15,6 +17,8 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
   data,
   onChange,
   onNext,
+  loading = false,
+  error,
   isExistingConfig,
 }) => {
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -48,6 +52,7 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
     setIsSubmitting(true);
     try {
       await Promise.resolve(onNext());
+      // C'est le parent qui pilote la suite (chargement, navigation...), pas ici
     } finally {
       setIsSubmitting(false);
     }
@@ -60,7 +65,7 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
       noValidate
       data-testid="basic-info-step-form"
     >
-      {/* Aide compacte */}
+      {/* info */}
       <div
         id="screen_general_helper"
         className="flex items-center w-full text-gray-600 text-sm gap-2 mb-1"
@@ -71,7 +76,7 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
         </span>
       </div>
 
-      {validationError && (
+      {(validationError || error) && (
         <div
           id="config_name_error"
           ref={errorRef}
@@ -81,7 +86,7 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
           tabIndex={-1}
         >
           <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-          <span>{validationError}</span>
+          <span>{validationError ?? error}</span>
         </div>
       )}
 
@@ -96,10 +101,10 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
           }
           className="w-full transition-all duration-200 focus:ring-2"
           required
-          error={validationError ?? undefined}
-          aria-invalid={!!validationError}
+          error={validationError ?? error ?? undefined}
+          aria-invalid={!!(validationError || error)}
           aria-describedby={[
-            validationError && 'config_name_error',
+            (validationError || error) && 'config_name_error',
             'config_name_helper',
             'screen_general_helper'
           ].filter(Boolean).join(' ')}
@@ -146,10 +151,10 @@ export const BasicInfoStep: React.FC<BasicInfoStepProps> = ({
         <Button
           type="submit"
           className="flex items-center"
-          disabled={isSubmitting}
-          aria-label={isSubmitting ? 'Chargement...' : 'Suivant'}
+          disabled={isSubmitting || loading}
+          aria-label={(isSubmitting || loading) ? 'Chargement...' : 'Suivant'}
         >
-          {isSubmitting ? (
+          {isSubmitting || loading ? (
             <>
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
               {isExistingConfig ? 'Mise à jour...' : 'Chargement...'}

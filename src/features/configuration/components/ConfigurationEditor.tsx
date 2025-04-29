@@ -16,6 +16,7 @@ import type {
   Step2bisFormData,
   Column,
   StepMetadata,
+  StepStatus,
 } from '../../../types';
 
 const stepOrder = [
@@ -28,21 +29,34 @@ const stepOrder = [
 ] as const;
 type Step = typeof stepOrder[number];
 
+const getStepStatus = (
+  step: Step,
+  currentStep: Step
+): StepStatus =>
+  step === currentStep
+    ? 'current'
+    : stepOrder.indexOf(currentStep) > stepOrder.indexOf(step)
+    ? 'complete'
+    : 'upcoming';
+
 export const ConfigurationEditor: React.FC = () => {
   const navigate = useNavigate();
-  const params = useParams();
+  const params = useParams<{ id: string }>();
 
   const [currentStep, setCurrentStep] = useState<Step>('basic');
+
   const [step1Data, setStep1Data] = useState<Step1FormData>({
     config_name: '',
     is_catalog: false,
   });
+
   const [dimensionsData, setDimensionsData] = useState<Step2FormData>({
     outer_height: 0,
     outer_width: 0,
     outer_depth: 0,
     configuration_description: '',
   });
+
   const [columnData, setColumnData] = useState<Step2bisFormData>({
     thickness: '',
     inner_height: '',
@@ -57,8 +71,10 @@ export const ConfigurationEditor: React.FC = () => {
     body_count: 0,
   });
 
+  type ExistingColumn = Column & { column_order: number };
+
   const [columns, setColumns] = useState<Column[]>([]);
-  const [existingColumns, setExistingColumns] = useState<Column[]>([]);
+  const [existingColumns, setExistingColumns] = useState<ExistingColumn[]>([]);
   const [metadata, setMetadata] = useState<StepMetadata | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -68,43 +84,53 @@ export const ConfigurationEditor: React.FC = () => {
   const { createConfiguration, updateConfiguration } = useConfigurationsApi();
   const { getColumns } = useWorkflowApi();
 
-  // Initial load from URL param
+  // Update configId when params.id changes
   useEffect(() => {
     if (params.id && params.id !== configId) {
       setConfigId(params.id);
     }
   }, [params.id, configId]);
 
-  // Always load columns for config (loader colonne persistées)
+  // Fetch columns when configId changes
   useEffect(() => {
     if (!configId) return;
+    let cancelled = false;
     (async () => {
+      setLoading(true);
+      setError(null);
       try {
         const cols = await getColumns(configId);
-        setColumns(cols);
-        setExistingColumns(
-          cols.map((col) => ({
-            ...col,
-            column_order:
-              (col as any).column_order ?? (col as any).position ?? 0,
-          }))
-        );
-      } catch (e) {
-        setError('Erreur lors du chargement des colonnes');
+        if (!cancelled) {
+          setColumns(cols);
+          setExistingColumns(
+            cols.map(col => ({
+              ...col,
+              column_order: typeof col.column_order !== 'undefined'
+                ? col.column_order!
+                : typeof col.position !== 'undefined'
+                ? col.position!
+                : 0,
+            }))
+          );
+        }
+      } catch {
+        if (!cancelled) setError('Erreur lors du chargement des colonnes');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [configId, getColumns]);
 
-  // Submit Basic Info
+  // Submit Step1
   const handleBasicInfoSubmit = useCallback(
-    async (step1: Step1FormData) => {
+    async () => {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
-        setError(null);
-
         const payload = {
-          configuration_name: step1.config_name.trim().toUpperCase(),
-          is_catalog: step1.is_catalog,
+          configuration_name: step1Data.config_name.trim().toUpperCase(),
+          is_catalog: step1Data.is_catalog,
         };
 
         let newConfigId = configId;
@@ -117,7 +143,8 @@ export const ConfigurationEditor: React.FC = () => {
           await updateConfiguration(params.id, payload);
         }
 
-        setStep1Data(step1);
+        // setStep1Data probablement inutile ici car contrôlé par le formulaire enfant
+
         setCurrentStep('dimensions');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur inconnue');
@@ -125,27 +152,36 @@ export const ConfigurationEditor: React.FC = () => {
         setLoading(false);
       }
     },
-    [params.id, configId, createConfiguration, updateConfiguration, navigate]
+    [params.id, configId, createConfiguration, updateConfiguration, navigate, step1Data]
   );
 
-  // Callback pour recharger la vraie base (colonnes persistées) après save columns
-  const handleColumnsSaveAndRefetch = useCallback(async (_?: any) => {
+  // Reload columns after save
+  const handleColumnsSaveAndRefetch = useCallback(async () => {
     if (!configId) return;
-    const cols = await getColumns(configId);
-    setColumns(cols);
-    setExistingColumns(
-      cols.map((col) => ({
-        ...col,
-        column_order: (col as any).column_order ?? (col as any).position ?? 0,
-      }))
-    );
+    setLoading(true);
+    setError(null);
+    try {
+      const cols = await getColumns(configId);
+      setColumns(cols);
+      setExistingColumns(
+        cols.map(col => ({
+          ...col,
+          column_order:
+            typeof col.column_order !== 'undefined'
+              ? col.column_order
+              : typeof col.position !== 'undefined'
+              ? col.position
+              : 0,
+        }))
+      );
+    } catch {
+      setError('Erreur lors du rechargement des colonnes');
+    } finally {
+      setLoading(false);
+    }
   }, [configId, getColumns]);
 
-  const steps: {
-    name: string;
-    description: string;
-    status: 'current' | 'complete' | 'upcoming';
-  }[] = stepOrder.map((step, i) => ({
+  const steps = stepOrder.map((step, i) => ({
     name: [
       'Infos',
       'Dimensions',
@@ -162,12 +198,7 @@ export const ConfigurationEditor: React.FC = () => {
       'Coins et angles',
       'Validation finale',
     ][i],
-    status:
-      step === currentStep
-        ? 'current'
-        : stepOrder.indexOf(currentStep) > i
-        ? 'complete'
-        : 'upcoming',
+    status: getStepStatus(step, currentStep),
   }));
 
   return (
@@ -175,20 +206,26 @@ export const ConfigurationEditor: React.FC = () => {
       <ConfigurationHeader
         title="Éditeur de configuration"
         subtitle="Créer ou modifier une configuration"
-        configId={configId}
+        configId={configId || undefined}
         totalPrice={0}
       />
 
       <ConfigurationSteps
         steps={steps}
-        onStepClick={(index) => setCurrentStep(stepOrder[index])}
+        onStepClick={index => setCurrentStep(stepOrder[index])}
       />
+
+      {error && (
+        <div className="text-red-600 bg-red-50 p-2 rounded mb-4">{error}</div>
+      )}
 
       {currentStep === 'basic' && (
         <Step1Form
           data={step1Data}
           onChange={setStep1Data}
-          onNext={() => setCurrentStep('dimensions')}
+          onNext={handleBasicInfoSubmit}
+          loading={loading}
+          error={error || undefined}
         />
       )}
 
@@ -198,17 +235,15 @@ export const ConfigurationEditor: React.FC = () => {
           onChange={setDimensionsData}
           onNext={() => setCurrentStep('columns')}
           onBack={() => setCurrentStep('basic')}
+          loading={loading}
+          error={error || undefined}
         />
       )}
 
       {currentStep === 'columns' && (
         <Step2bisForm
           columns={columns}
-          existingColumns={existingColumns.map((col) => ({
-            ...col,
-            column_order:
-              (col as any).column_order ?? (col as any).position ?? 0,
-          }))}
+          existingColumns={existingColumns}
           configId={configId}
           columnData={columnData}
           onColumnDataChange={setColumnData}
@@ -219,6 +254,8 @@ export const ConfigurationEditor: React.FC = () => {
           onDuplicateColumn={() => {}}
           onBack={() => setCurrentStep('dimensions')}
           onSave={handleColumnsSaveAndRefetch}
+          loading={loading}
+          error={error || undefined}
         />
       )}
 
@@ -227,9 +264,8 @@ export const ConfigurationEditor: React.FC = () => {
           configId={configId}
           onBack={() => setCurrentStep('columns')}
           onSave={() => setCurrentStep('corners')}
-          isSaving={loading /* ou autre valeur */}
-          error={error ?? undefined} // <-- PATCH qui REND 'undefined' au lieu de 'null'
-          // Passe uniquement les props attendus par VolumesStepProps !
+          isSaving={loading}
+          error={error || undefined}
         />
       )}
 

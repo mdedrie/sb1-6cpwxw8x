@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FormField, Button } from '../../../../components/ui';
-import { ArrowLeft, ArrowRight, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, Info, AlertCircle } from 'lucide-react';
 import type { Step2FormData } from '../../../../types';
 
 interface DimensionsStepProps {
   data: Step2FormData;
   onChange: (data: Step2FormData) => void;
-  onNext: (e: React.FormEvent) => void;
+  onNext: () => void | Promise<void>;
   onBack: () => void;
   loading?: boolean;
   error?: string | null;
@@ -20,11 +20,25 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
   onNext,
   onBack,
   loading = false,
+  error,
   configId,
   isExistingConfig = false
 }) => {
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationError(null);
+    // Exemple de validation locale (ajuste à ton besoin réel)
+    if (!data.configuration_description.trim() || data.configuration_description.length < 3) {
+      setValidationError("Merci de renseigner une description de la configuration (3 caractères minimum).");
+      return;
+    }
+    await Promise.resolve(onNext());
+  };
+
   return (
-    <form onSubmit={onNext} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {(isExistingConfig || configId) && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-start">
           <Info className="h-5 w-5 text-blue-500 mt-0.5 mr-3" />
@@ -41,6 +55,13 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
         </div>
       )}
 
+      {(validationError || error) && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-center text-red-700 outline-none w-full" role="alert" aria-live="assertive">
+          <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+          <span>{validationError ?? error}</span>
+        </div>
+      )}
+
       <FormField
         label="Description"
         id="configuration_description"
@@ -54,6 +75,7 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
         required
         aria-required="true"
         aria-label="Description de la configuration"
+        error={validationError ?? error ?? undefined}
       />
 
       <div className="flex justify-between mt-8">
@@ -83,5 +105,3 @@ export const DimensionsStep: React.FC<DimensionsStepProps> = ({
     </form>
   );
 };
-
-export const Step2bisForm = DimensionsStep;
