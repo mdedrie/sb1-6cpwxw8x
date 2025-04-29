@@ -13,7 +13,9 @@ type SceneSetup = {
   ready: boolean;
 };
 
-export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): SceneSetup {
+export function useSceneSetup(
+  containerRef: React.RefObject<HTMLDivElement>
+): SceneSetup {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -27,35 +29,77 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
     const container = containerRef.current;
     if (!container || sceneRef.current) return;
 
-    // -- SETUP SCENE --
+    // SCENE
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8f8f8);
+    scene.background = new THREE.Color(0xf3f4f6);
     sceneRef.current = scene;
 
+    // CAMERA
     const camera = new THREE.PerspectiveCamera(
-      75,
+      70,
       container.clientWidth / container.clientHeight,
       0.1,
-      1000
+      300
     );
-    camera.position.set(4, 3, 6);
+    camera.position.set(8, 7, 10);
     cameraRef.current = camera;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    // RENDERER
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setClearColor(0xf3f4f6, 1);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.04;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
+    // POSTPROCESS Outline
     const effect = new OutlineEffect(renderer);
     effectRef.current = effect;
 
+    // CONTROLS
     const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.12;
+    controls.minDistance = 2;
+    controls.maxDistance = 50;
+    controls.target.set(0, 1.2, 0);
     controls.update();
     controlsRef.current = controls;
 
-    scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-    scene.add(new THREE.GridHelper(10, 10));
+    // LIGHTS
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x888899, 0.45));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.78);
+    sun.position.set(10, 14, 8);
+    sun.castShadow = true;
+    sun.shadow.bias = -0.0005;
+    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.radius = 5;
+    scene.add(sun);
 
+    // GROUND RECEIVER
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(40, 40),
+      new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.07 })
+    );
+    ground.receiveShadow = true;
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    scene.add(ground);
+
+    // GRID & AXES
+    const grid = new THREE.GridHelper(18, 54, 0xe0e7ef, 0xf3f4f6);
+    (grid.material as THREE.Material).opacity = 0.55;
+    (grid.material as THREE.Material).transparent = true;
+    scene.add(grid);
+
+    scene.add(new THREE.AxesHelper(2.5));
+
+    // Animation loop
     let mounted = true;
     setReady(true);
 
@@ -67,19 +111,24 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
     };
     animate();
 
+    // Resize performant (debounce)
+    let resizeTimer: number | undefined;
     resizeObserverRef.current = new ResizeObserver(() => {
-      if (!container || !camera) return;
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        if (!container || !camera) return;
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+      }, 60);
     });
     resizeObserverRef.current.observe(container);
 
+    // CLEAN-UP
     return () => {
       mounted = false;
-      // setReady(false); // Plus besoin (setError/warnings asynchro supprimé)
       if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
       if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
       controls.dispose();
@@ -88,8 +137,8 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
         if (obj instanceof THREE.Mesh) {
           obj.geometry.dispose();
           if (Array.isArray(obj.material)) {
-            obj.material.forEach(m => m.dispose());
-          } else {
+            obj.material.forEach(m => m.dispose && m.dispose());
+          } else if (obj.material?.dispose) {
             obj.material.dispose();
           }
         }
@@ -97,7 +146,6 @@ export function useSceneSetup(containerRef: React.RefObject<HTMLDivElement>): Sc
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
-      // Clean refs
       sceneRef.current = null;
       cameraRef.current = null;
       rendererRef.current = null;
