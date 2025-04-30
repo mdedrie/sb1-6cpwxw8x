@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { OutlineEffect } from 'three/examples/jsm/effects/OutlineEffect';
 import type { RefObject } from 'react';
+import { fitCameraToScene } from '../../../../utils/fitCameraToScene';
+
 
 type SceneSetup = {
   sceneRef: RefObject<THREE.Scene | null>;
@@ -68,7 +70,7 @@ export function useSceneSetup(
     controls.update();
     controlsRef.current = controls;
 
-    // LIGHTS
+    // LIGHTS réalistes
     scene.add(new THREE.HemisphereLight(0xffffff, 0x888899, 0.45));
     const sun = new THREE.DirectionalLight(0xffffff, 0.78);
     sun.position.set(10, 14, 8);
@@ -78,7 +80,7 @@ export function useSceneSetup(
     sun.shadow.radius = 5;
     scene.add(sun);
 
-    // GROUND RECEIVER
+    // GROUND RECEIVER & Grid & Axes
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(40, 40),
       new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.07 })
@@ -88,15 +90,15 @@ export function useSceneSetup(
     ground.position.y = 0;
     scene.add(ground);
 
-    // GRID & AXES
     const grid = new THREE.GridHelper(18, 54, 0xe0e7ef, 0xf3f4f6);
     (grid.material as THREE.Material).opacity = 0.55;
     (grid.material as THREE.Material).transparent = true;
     scene.add(grid);
-
     scene.add(new THREE.AxesHelper(2.5));
 
-    // Animation loop
+    // Centrage auto du contenu scene
+    fitCameraToScene(camera, controls, scene);
+
     let mounted = true;
     setReady(true);
 
