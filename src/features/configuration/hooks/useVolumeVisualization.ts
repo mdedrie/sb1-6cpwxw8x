@@ -31,6 +31,20 @@ export function useVolumeStyles() {
     STROKE_WIDTH: 1.5,
   }), []);
 
+  // Génère toujours la même couleur pastel pour chaque groupe, peu importe l'id
+  function groupColorByIdx(idx: string | number) {
+    const palette = [
+      "#FFD6D6", "#FFF6B3", "#C9F9D6", "#C3D9FF", "#FBC4FF",
+      "#FFCFC9", "#C8FAFF", "#FEEEDE", "#D7EEFF", "#FBE568", "#E1FFB8",
+    ];
+    const str = idx.toString();
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return palette[Math.abs(hash) % palette.length];
+  }
+
   const getVolumeStyles = ({ isHovered, temperature }: VolumeStylesConfig) => {
     const colors = COLORS[temperature ?? 'undefined'];
     const fillColor = isHovered
@@ -47,5 +61,6 @@ export function useVolumeStyles() {
     COLORS,
     CONSTANTS,
     getVolumeStyles,
+    groupColorByIdx, // <--- à utiliser pour colorier tout un groupe fusionné
   };
 }
