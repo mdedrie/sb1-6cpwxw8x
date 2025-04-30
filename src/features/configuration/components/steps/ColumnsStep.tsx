@@ -27,7 +27,7 @@ interface ColumnsStepProps {
   error?: string | null;
 }
 
-const MAX_COLUMNS = 5;
+const MAX_COLUMNS = 15;
 
 export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   columns,
