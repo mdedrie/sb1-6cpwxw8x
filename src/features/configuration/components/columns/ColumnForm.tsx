@@ -25,8 +25,14 @@ export const ColumnForm: React.FC<ColumnFormProps> = ({
     Object.entries(data).map(([k, v]) => [k, v?.toString() ?? ''])
   );
 
+  // Antireload: wrapper qui garde e.preventDefault !
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(e);
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4" autoComplete="off">
+    <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
       <fieldset disabled={disabled} className="border-none p-0 m-0">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SelectField

@@ -95,7 +95,7 @@ export function useWorkflowApi(): UseWorkflowApiReturn {
       try {
         // Use the api.baseUrl in the fetch!
         const resp = await fetch(
-          `${api.baseUrl}/api/configuration_columns/${configId}/${columnOrder}`,
+          `${api.baseUrl}/configuration_columns/${configId}/${columnOrder}`,
           { method: 'DELETE' }
         );
         if (!resp.ok) {

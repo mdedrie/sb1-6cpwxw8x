@@ -5,6 +5,7 @@ import {
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Column } from '../../../../types';
+import { getDesignImage } from '../../../../utils/getDesignImage';
 
 const directionMap: Record<string, string> = {
   C: 'Centre',
@@ -89,20 +90,14 @@ export const ColumnCard: FC<ColumnCardProps> = ({
     opacity: isDragging ? 0.8 : 1
   };
 
-  // Handler anti-boucle image fallback
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const target = e.target as HTMLImageElement;
-    if (target.dataset.fallback === '1') return;
-    target.onerror = null;
-    target.src = '/img/design-non-disponible.jpg';
-    target.dataset.fallback = '1';
-  };
-
   const formatValue = (value: string | undefined, type: string): string => {
     if (!value) return '—';
     if (type === 'direction') return directionMap[value] || value;
     return value;
   };
+
+  // Utilise l'image locale correspondant au design
+  const imageSrc = getDesignImage(column.design);
 
   return (
     <div
@@ -122,11 +117,9 @@ export const ColumnCard: FC<ColumnCardProps> = ({
       >
         {column.design ? (
           <img
-            src={`https://icecoreapi-production.up.railway.app/designs/${column.design.toLowerCase()}.jpg`}
+            src={imageSrc}
             alt={`Design ${column.design}`}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={handleImageError}
-            data-fallback="0"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">

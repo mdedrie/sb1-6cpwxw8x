@@ -64,9 +64,6 @@ export function useSceneSetup(
     // CONTROLS
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.12;
-    controls.minDistance = 2;
-    controls.maxDistance = 50;
     controls.target.set(0, 1.2, 0);
     controls.update();
     controlsRef.current = controls;
