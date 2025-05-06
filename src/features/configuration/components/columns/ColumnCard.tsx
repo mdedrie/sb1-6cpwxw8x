@@ -20,9 +20,9 @@ interface FieldProps {
 }
 
 const Field: FC<FieldProps> = ({ label, value }) => (
-  <div className="flex items-center justify-between text-sm">
-    <span className="text-gray-500">{label}</span>
-    <code className="ml-2 text-xs font-medium bg-gray-50 px-1.5 py-0.5 rounded text-gray-700">
+  <div className="flex items-center justify-between text-[13px]">
+    <span className="text-gray-400 font-medium">{label}</span>
+    <code className="ml-2 text-xs font-bold bg-gray-50 px-2 py-0.5 rounded text-gray-700 tracking-tight border border-gray-100">
       {value}
     </code>
   </div>
@@ -39,12 +39,12 @@ interface ActionButtonProps {
 const ActionButton: FC<ActionButtonProps> = ({ onClick, icon, label, disabled, variant = 'default' }) => (
   <button
     onClick={onClick}
-    className={`text-gray-400 transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 rounded ${
+    className={`transition-colors duration-200 focus:outline-none focus:ring-1 focus:ring-offset-1 rounded-full p-1.5 ${
       disabled
-        ? 'opacity-50 cursor-not-allowed'
+        ? 'opacity-30 cursor-not-allowed'
         : variant === 'danger'
-        ? 'hover:text-red-500'
-        : 'hover:text-indigo-500'
+        ? 'text-red-500 hover:bg-red-50 hover:text-red-700'
+        : 'text-indigo-500 hover:bg-indigo-50 hover:text-indigo-700'
     }`}
     disabled={disabled}
     aria-label={label}
@@ -87,7 +87,7 @@ export const ColumnCard: FC<ColumnCardProps> = ({
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 100 : 1,
-    opacity: isDragging ? 0.8 : 1
+    opacity: isDragging ? 0.87 : 1
   };
 
   const formatValue = (value: string | undefined, type: string): string => {
@@ -96,22 +96,16 @@ export const ColumnCard: FC<ColumnCardProps> = ({
     return value;
   };
 
-  // Utilise l'image locale correspondant au design
   const imageSrc = getDesignImage(column.design);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-200 ${
-        isDragging ? 'ring-2 ring-indigo-500 ring-opacity-50 rotate-2 scale-105' : ''
-      } ${viewMode === 'grid' ? 'w-[280px] p-4' : 'p-3 w-full max-w-2xl mx-auto'}`}
+      className={`relative group bg-white border border-gray-100 hover:border-indigo-300 shadow-lg hover:shadow-2xl rounded-2xl transition-all mb-3 duration-200 flex flex-col ${isDragging ? 'ring-2 ring-indigo-400 rotate-2 scale-105' : ''} ${viewMode === 'grid' ? 'w-[310px] p-5' : 'p-3 w-full max-w-2xl mx-auto'}`}
       {...attributes}
     >
-      <div
-        className={`${
-          viewMode === 'grid' ? 'aspect-[3/4] mb-4' : 'w-32 h-32 float-left mr-6'
-        } bg-gray-100 rounded-lg overflow-hidden relative group`}
+      <div className={`${viewMode === 'grid' ? 'aspect-[4/5] mb-4' : 'w-28 h-28 float-left mr-6'} bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden relative group`}
         role={column.design ? "img" : undefined}
         aria-label={column.design ? `Aperçu du design ${column.design}` : undefined}
       >
@@ -119,29 +113,28 @@ export const ColumnCard: FC<ColumnCardProps> = ({
           <img
             src={imageSrc}
             alt={`Design ${column.design}`}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-110"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">
             <span>Design non disponible</span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 flex items-end justify-center p-2 transition-opacity duration-300">
-          <span className="text-white text-sm truncate">{column.design || "Non renseigné"}</span>
+        <div className="absolute bottom-2 right-2 flex gap-1 opacity-80">
+          <span className="bg-indigo-600/80 text-white text-[10px] px-2 py-1 rounded shadow font-medium select-none uppercase">{column.design || 'N/A'}</span>
         </div>
       </div>
 
-      <div className={`flex items-center justify-between ${viewMode === 'grid' ? 'mb-4' : 'mb-2'}`}>
+      <div className="flex items-center justify-between mb-3 mt-0.5">
         <div className="flex items-center gap-2">
-          <div {...dragListeners} className={`cursor-grab ${disabled ? "cursor-not-allowed" : ""}`} title="Déplacer la colonne">
-            <GripVertical className="h-5 w-5 text-gray-400 hover:text-indigo-500 transition-colors duration-200" />
+          <div {...dragListeners} className={`cursor-grab ${disabled ? "cursor-not-allowed" : "active:cursor-grabbing"}`} title="Déplacer la colonne">
+            <GripVertical className="h-5 w-5 text-gray-300 group-hover:text-indigo-400 transition-colors" />
           </div>
-          <span className="text-xs font-medium text-gray-900 bg-gray-100 px-2 py-0.5 rounded-full">
+          <span className="text-xs font-semibold text-indigo-600 tracking-wide bg-indigo-50 px-2 py-0.5 rounded-full">
             Colonne {column.position}
           </span>
         </div>
-
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <ActionButton
             onClick={() => onDuplicate(column)}
             icon={<Copy className="h-4 w-4" />}
@@ -164,9 +157,9 @@ export const ColumnCard: FC<ColumnCardProps> = ({
         </div>
       </div>
 
-      <div className={`text-sm divide-y divide-gray-100 ${viewMode === 'list' ? 'clear-both' : ''}`}>
+      <div className="text-[13px] divide-y divide-dashed divide-gray-100">
         <section className="space-y-2 py-2">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase">Dimensions</h4>
+          <h4 className="text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Dimensions</h4>
           <Field label="Épaisseur" value={column.thickness} />
           <Field label="Hauteur" value={column.inner_height} />
           <Field label="Largeur" value={column.inner_width} />
@@ -174,20 +167,20 @@ export const ColumnCard: FC<ColumnCardProps> = ({
         </section>
 
         <section className="space-y-2 py-2">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase">Apparence</h4>
+          <h4 className="text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Apparence</h4>
           <Field label="Design" value={column.design} />
           <Field label="Finition" value={column.finish} />
         </section>
 
         <section className="space-y-2 py-2">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase">Porte</h4>
+          <h4 className="text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Porte</h4>
           <Field label="Type" value={column.door} />
           <Field label="Ouverture" value={formatValue(column.two_way_opening, 'direction')} />
           <Field label="Poignée" value={formatValue(column.knob_direction, 'direction')} />
         </section>
 
         <section className="space-y-2 py-2">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase">Options</h4>
+          <h4 className="text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Options</h4>
           <Field label="Mousse" value={formatValue(column.foam_type, 'foam')} />
           <Field label="Corps" value={column.body_count || 1} />
         </section>

@@ -16,7 +16,6 @@ export const VolumeTemperatureTable: React.FC<VolumeTemperatureTableProps> = ({
 }) => {
   const [showVolumes, setShowVolumes] = useState(false);
 
-  // Toujours appeler TES HOOKS, puis gestion fallback ci-dessous seulement au render !
   const mergedGroups = useMemo(() => {
     if (!data?.shapes) return {};
     const map: Record<string | number, {
@@ -65,48 +64,40 @@ export const VolumeTemperatureTable: React.FC<VolumeTemperatureTableProps> = ({
       })
   , [mergedGroups]);
 
-  // Maintenant, le return conditionnel
-  if (!data?.shapes) return null;
+  if (!data?.shapes || groupList.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 text-center text-gray-400">
+        Aucun volume à afficher.
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-      <h3 className="text-sm font-semibold text-cyan-900 mb-4">Volumes par température</h3>
-      <div className="space-y-2 mb-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex justify-between items-center px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-200"
-        >
-          <span className="text-sm font-medium text-emerald-700 flex items-center">
-            <span className="mr-1">🔥</span> Volume positif
-          </span>
-          <span className="text-xl font-bold text-emerald-600 tabular-nums">
+      <h3 className="text-base font-semibold text-cyan-900 mb-4">Répartition des volumes</h3>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
+          <span className="text-xl">🔥</span>
+          <span className="flex-1 text-sm text-emerald-700 font-medium">Positif</span>
+          <span className="text-xl font-bold text-emerald-600 tabular-nums" aria-live="polite">
             {totalVolumes.positive.toFixed(2)} <span className="text-base">m³</span>
           </span>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.07 }}
-          className="flex justify-between items-center px-3 py-2 bg-blue-50 rounded-lg border border-blue-200"
-        >
-          <span className="text-sm font-medium text-blue-700 flex items-center">
-            <span className="mr-1">❄️</span> Volume négatif
-          </span>
-          <span className="text-xl font-bold text-blue-600 tabular-nums">
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
+          <span className="text-xl">❄️</span>
+          <span className="flex-1 text-sm text-blue-700 font-medium">Négatif</span>
+          <span className="text-xl font-bold text-blue-600 tabular-nums" aria-live="polite">
             {totalVolumes.negative.toFixed(2)} <span className="text-base">m³</span>
           </span>
-        </motion.div>
+        </div>
       </div>
-
-      {/* Détail */}
       <button
         onClick={() => setShowVolumes(v => !v)}
-        className="w-full flex items-center justify-between p-2 pl-3 bg-gray-50 rounded-lg hover:bg-gray-100 focus:bg-gray-100 text-sm font-medium text-gray-700 border border-gray-100"
+        className="w-full flex items-center justify-between p-2 pl-3 bg-gray-50 rounded-lg hover:bg-gray-100 focus:bg-gray-100 text-sm font-medium text-gray-700 border border-gray-100 mb-1"
         aria-expanded={showVolumes}
         aria-controls="vol-table-details"
       >
-        Détail des volumes
+        Détail des caissons
         {showVolumes ? (
           <ChevronDown className="h-4 w-4 text-gray-500" />
         ) : (
@@ -115,90 +106,90 @@ export const VolumeTemperatureTable: React.FC<VolumeTemperatureTableProps> = ({
       </button>
 
       <AnimatePresence>
-      {showVolumes && (
-        <motion.div
-          id="vol-table-details"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.17 }}
-          className="mt-2 space-y-2"
-        >
-          {groupList.map((group) => {
-            const temp = selectedVolumes[group.mergeGroupId];
-            return (
-              <div
-                key={group.mergeGroupId}
-                className={`transition-all flex flex-col gap-1 p-2.5 rounded-lg border shadow-sm ${
-                  temp === 'positive'
-                    ? 'bg-emerald-50/70 border-emerald-200'
-                    : temp === 'negative'
-                    ? 'bg-blue-50/70 border-blue-200'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-                tabIndex={0}
-                aria-label={`Détail caisson ${group.mergeGroupId}, ${temp ? `température ${temp}` : 'température non définie'}, ${group.volume.toFixed(2)}m³`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-medium text-gray-700">
-                      Caisson <span className="tabular-nums">{group.mergeGroupId}</span>
-                    </span>
-                    <span className="ml-2 text-xs rounded bg-gray-100 px-1.5 py-0.5 font-medium text-gray-500">
-                      Colonnes : {Array.from(group.columns).join(', ')}
+        {showVolumes && (
+          <motion.div
+            id="vol-table-details"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.17 }}
+            className="mt-2 space-y-2"
+          >
+            {groupList.map((group) => {
+              const temp = selectedVolumes[group.mergeGroupId];
+              return (
+                <div
+                  key={group.mergeGroupId}
+                  className={`transition-all flex flex-col gap-1 p-2.5 rounded-lg border shadow-sm ${
+                    temp === 'positive'
+                      ? 'bg-emerald-50/80 border-emerald-200'
+                      : temp === 'negative'
+                      ? 'bg-blue-50/80 border-blue-200'
+                      : 'bg-gray-50 border-gray-200'
+                  } focus:outline-none focus:ring-2 focus:ring-indigo-300`}
+                  tabIndex={0}
+                  aria-label={`Caisson ${group.mergeGroupId}, ${temp ? `température ${temp}` : 'température non définie'}, ${group.volume.toFixed(2)}m³`}
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <span className="text-xs font-medium text-gray-700">
+                        Caisson <span className="tabular-nums">{group.mergeGroupId}</span>
+                      </span>
+                      <span className="ml-2 text-xs rounded bg-gray-100 px-1 py-0.5 font-medium text-gray-500">
+                        Colonnes : {Array.from(group.columns).sort((a,b)=>a-b).join(', ')}
+                      </span>
+                    </div>
+                    <span className="text-base font-semibold">
+                      {group.volume.toFixed(2)} m³
                     </span>
                   </div>
-                  <span className="text-base font-semibold">
-                    {group.volume.toFixed(2)} m³
-                  </span>
+                  <div className="flex flex-wrap items-center gap-3 mt-1">
+                    {temp ? (
+                      <span className={
+                        "px-2 py-0.5 rounded-xl text-xs font-bold flex items-center " +
+                        (temp === "positive"
+                          ? "text-emerald-800 bg-emerald-100/90"
+                          : "text-blue-800 bg-blue-100/90")
+                      }>
+                        {temp === 'positive' ? '🔥 Positif' : '❄️ Négatif'}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-xl text-xs font-bold text-orange-800 bg-yellow-50">
+                        Température non définie
+                      </span>
+                    )}
+                    {onVolumeSelect && (
+                      <>
+                        <button
+                          type="button"
+                          tabIndex={0}
+                          className={`px-2 py-0.5 rounded text-xs border transition-all focus-visible:outline focus-visible:ring-2 ${{
+                            true: 'bg-emerald-100 border-emerald-400 text-emerald-700',
+                            false: 'bg-white border-gray-300 hover:border-emerald-400'
+                          }[String(temp === 'positive')]}`}
+                          aria-pressed={temp === 'positive'}
+                          onClick={() => onVolumeSelect(group.mergeGroupId, 'positive')}
+                          aria-label={`Affecter Positif à caisson ${group.mergeGroupId}`}
+                        >🔥 Positif</button>
+                        <button
+                          type="button"
+                          tabIndex={0}
+                          className={`px-2 py-0.5 rounded text-xs border transition-all focus-visible:outline focus-visible:ring-2 ${{
+                            true: 'bg-blue-100 border-blue-400 text-blue-700',
+                            false: 'bg-white border-gray-300 hover:border-blue-400'
+                          }[String(temp === 'negative')]}`}
+                          aria-pressed={temp === 'negative'}
+                          onClick={() => onVolumeSelect(group.mergeGroupId, 'negative')}
+                          aria-label={`Affecter Négatif à caisson ${group.mergeGroupId}`}
+                        >❄️ Négatif</button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  {temp ? (
-                    <span className={
-                      "px-2 py-0.5 rounded-xl text-xs font-bold flex items-center " +
-                      (temp === "positive"
-                        ? "text-emerald-800 bg-emerald-100/90"
-                        : "text-blue-800 bg-blue-100/90")
-                    }>
-                      {temp === 'positive' ? '🔥 Positif' : '❄️ Négatif'}
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded-xl text-xs font-bold text-orange-800 bg-yellow-50">
-                      Température non définie
-                    </span>
-                  )}
-                  {onVolumeSelect && (
-                    <>
-                      <button
-                        type="button"
-                        tabIndex={0}
-                        className={`px-2 py-0.5 rounded text-xs border transition-all focus-visible:outline focus-visible:ring-2 ${
-                          temp === 'positive'
-                            ? 'bg-emerald-100 border-emerald-400 text-emerald-700'
-                            : 'bg-white border-gray-300 hover:border-emerald-400'
-                        }`}
-                        aria-pressed={temp === 'positive'}
-                        onClick={() => onVolumeSelect(group.mergeGroupId, 'positive')}
-                      >🔥 Positif</button>
-                      <button
-                        type="button"
-                        tabIndex={0}
-                        className={`px-2 py-0.5 rounded text-xs border transition-all focus-visible:outline focus-visible:ring-2 ${
-                          temp === 'negative'
-                            ? 'bg-blue-100 border-blue-400 text-blue-700'
-                            : 'bg-white border-gray-300 hover:border-blue-400'
-                        }`}
-                        aria-pressed={temp === 'negative'}
-                        onClick={() => onVolumeSelect(group.mergeGroupId, 'negative')}
-                      >❄️ Négatif</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </motion.div>
-      )}
+              );
+            })}
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );

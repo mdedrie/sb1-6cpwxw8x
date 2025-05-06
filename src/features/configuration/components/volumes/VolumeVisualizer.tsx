@@ -68,23 +68,23 @@ export const VolumeVisualizer: React.FC<VolumeVisualizerProps> = ({
             <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="rgba(0,0,0,.12)" />
           </filter>
         </defs>
-        {groupedVolumes.map((group, idx) => (
-          <VolumeGroup
-            key={`col-${group.columnIndex}_mgid-${group.mergeGroupId}`}
-            mergeGroupId={group.mergeGroupId}
-            volumeId={group.volumeId}
-            parts={group.parts}
-            x={group.x}
-            y={group.y}
-            width={group.width}
-            height={group.height}
-            temperature={selectedVolumes[group.mergeGroupId]}
-            onVolumeSelect={(temp) => {
-              onVolumeSelect(group.mergeGroupId, temp);
-              onDirtyChange?.(true);
-            }}
-          />
-        ))}
+        {groupedVolumes.map((group) => (
+  <VolumeGroup
+    key={`mgid-${group.mergeGroupId}_${group.x}_${group.y}`}
+    mergeGroupId={group.mergeGroupId}
+    volumeId={group.volumeId}
+    parts={group.parts}
+    x={group.x}
+    y={group.y}
+    width={group.width}
+    height={group.height}
+    temperature={selectedVolumes[group.mergeGroupId]}
+    onVolumeSelect={(temp) => {
+      onVolumeSelect(group.mergeGroupId, temp);
+      onDirtyChange?.(true);
+    }}
+  />
+))}
       </svg>
       <div className="px-2">
         <div className="bg-indigo-50/50 rounded-lg p-3 border border-indigo-100 max-w-lg mx-auto">
