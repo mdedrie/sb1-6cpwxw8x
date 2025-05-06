@@ -118,9 +118,10 @@ export interface Configuration {
 
 export type StepStatus = 'current' | 'complete' | 'upcoming';
 
-export interface Step1FormData {
+export type Step1FormData = {
   config_name: string;
   is_catalog: boolean;
+  configuration_description?: string;
 }
 
 export interface Step2FormData {
