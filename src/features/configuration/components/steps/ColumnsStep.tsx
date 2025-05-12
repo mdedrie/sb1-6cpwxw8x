@@ -22,6 +22,7 @@ interface ColumnsStepProps {
   onDuplicateColumn: (column: Column) => void;
   onBack: () => void;
   onSave: () => void | Promise<void>;
+  onContinue: () => void | Promise<void>;
   loading?: boolean;
   isSaving?: boolean;
   error?: string | null;
@@ -42,6 +43,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   onDuplicateColumn,
   onBack,
   onSave,
+  onContinue,
   loading,
   isSaving: externalIsSaving,
   error: externalError
@@ -49,6 +51,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
   const [viewMode] = useState<'grid' | 'list'>('grid');
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const { handleSaveColumns, error: saveError, isSaving: internalIsSaving } = useColumnActions({
     columns,
@@ -115,6 +118,11 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
     }
   };
 
+  const handleSaveAndContinue = async () => {
+    setLocalError(null);
+    await onContinue();
+  };
+
   const isSavingState = externalIsSaving || internalIsSaving;
   const errorMessage = externalError || saveError;
 
@@ -142,6 +150,11 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
           {errorMessage && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">{errorMessage}</p>
+            </div>
+          )}
+          {localError && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{localError}</p>
             </div>
           )}
           <ColumnPreview columns={columns} metadata={metadata} />
@@ -218,7 +231,7 @@ export const ColumnsStep: React.FC<ColumnsStepProps> = ({
         </Button>
         <div className="flex items-center space-x-3">
           <Button
-            onClick={handleSave}
+            onClick={handleSaveAndContinue}
             type="button"
             className="flex items-center"
             disabled={loading || isSavingState}

@@ -54,3 +54,11 @@ export interface StepMetadata {
   last_updated: string;
   step_filters: Record<string, string[]>;
 }
+
+// ──────────────────────────────
+// Réponse de l'API des étapes de configuration
+export interface ConfigurationStepsResponse {
+  configuration_id: string;
+  currentStep: string;
+  nextStep: string;
+}

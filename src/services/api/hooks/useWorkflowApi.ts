@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
 import { ApiController, ApiError } from '../ApiController';
 import type { StepMetadata, Column } from '../../../types';
+import type { ConfigurationStepsResponse } from '../types';
 
 interface UseWorkflowApiReturn {
   getMetadata: (filters?: string[]) => Promise<StepMetadata>;
   addColumn: (configId: string, columnData: Record<string, any>) => Promise<void>;
   getColumns: (configId: string) => Promise<Column[]>;
   deleteColumn: (configId: string, columnOrder: number) => Promise<void>;
+  getConfigurationSteps: (configId: string) => Promise<ConfigurationStepsResponse>;
   isLoading: boolean;
   error: string | null;
 }
@@ -120,11 +122,37 @@ export function useWorkflowApi(): UseWorkflowApiReturn {
     [api.baseUrl]
   );
 
+  const getConfigurationSteps = useCallback(
+    async (configId: string): Promise<ConfigurationStepsResponse> => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await api.get<ConfigurationStepsResponse>(
+          `/configurations/${configId}/steps`
+        );
+        if (error) throw new ApiError(error, 0);
+        if (!data) throw new Error('Aucune donnée reçue pour les étapes');
+        return data;
+      } catch (err) {
+        const message =
+          err instanceof ApiError
+            ? err.message
+            : 'Erreur lors de la récupération des étapes de configuration';
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [api]
+  );
+
   return {
     getMetadata,
     addColumn,
     getColumns,
     deleteColumn,
+    getConfigurationSteps,
     isLoading,
     error,
   };

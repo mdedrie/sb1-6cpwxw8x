@@ -6,6 +6,7 @@ import { useEditorApi } from '../services/api/hooks';
 import { useWorkflowApi } from '../services/api/hooks';
 import { getRefFromId } from '../utils/parameters';
 import { BasicAndDimensionsStep } from '../features/configuration/components/BasicAndDimensionsStep';
+import { useColumnActions } from '../features/configuration/hooks/useColumnActions';
 
 import {
   ConfigurationHeader,
@@ -18,6 +19,7 @@ import {
 } from '../features/configuration/components';
 
 import type { Column, Step2bisFormData } from '../types';
+import type { ConfigurationStepsResponse } from '../services/api/types';
 
 const EMPTY_COLUMN: Step2bisFormData = {
   thickness: '',
@@ -62,9 +64,43 @@ export function ConfigurationEditor() {
     error: configError 
   } = useEditorApi();
 
-  const { getColumns, isLoading: isLoadingColumns, error: columnsError } = useWorkflowApi();
+  const { getColumns, isLoading: isLoadingColumns, error: columnsError, getConfigurationSteps } = useWorkflowApi();
   const [configId, setConfigId] = useState<string | null>(id || null);
   const [existingColumns, setExistingColumns] = useState<Column[]>([]);
+
+  // Mapping entre les noms d'étapes back et front
+  const stepBackToFront: Record<string, string> = {
+    informations: 'basic',
+    colonnes: 'columns',
+    volumes: 'volumes',
+    coins: 'corners',
+    angles_et_te: 'corners',
+    resume: 'summary',
+    dimensions: 'dimensions',
+  };
+  // Mapping front -> back pour la comparaison
+  const stepFrontToBack: Record<string, string> = {
+    basic: 'informations',
+    columns: 'colonnes',
+    volumes: 'volumes',
+    corners: 'angles_et_te',
+    summary: 'resume',
+    dimensions: 'dimensions',
+  };
+
+  // Normalisation pour éviter le undefined sur column_order
+  const normalizedExistingColumns = existingColumns.map(col => ({
+    ...col,
+    column_order: col.column_order ?? 0
+  }));
+
+  const { handleSaveColumns } = useColumnActions({
+    columns,
+    onColumnsChange: setColumns,
+    configId,
+    metadata,
+    existingColumns: normalizedExistingColumns
+  });
 
   useEffect(() => {
     const loadExistingConfiguration = async () => {
@@ -73,6 +109,11 @@ export function ConfigurationEditor() {
         return;
       }
       try {
+        // Synchronisation de l'étape courante avec l'API
+        const stepsData: ConfigurationStepsResponse = await getConfigurationSteps(id);
+        const mappedStep = stepBackToFront[stepsData.currentStep] || 'basic';
+        setCurrentStep(mappedStep as any);
+        // Chargement des données existantes comme avant
         const config = await getConfiguration(id);
         const apiColumns = await getColumns(id);
         setStep1Data({
@@ -80,14 +121,12 @@ export function ConfigurationEditor() {
           is_catalog: config.is_catalog,
           configuration_description: config.description || ''
         });
-        // Assure column_order
-        if (apiColumns && Array.isArray(apiColumns)) { // On garantit column_order: number pour chaque colonne 
-          const columnsWithOrder = apiColumns.map((col: any) => ({ ...col, column_order: typeof col.column_order === 'number' ? col.column_order : 1 })); setExistingColumns(columnsWithOrder); 
-          const mappedColumns: Column[] = columnsWithOrder.map((col: any) => ({ id: crypto.randomUUID(), position: col.column_order, thickness: getRefFromId(metadata, 'thicknesses', col.column_thickness_id) || '', inner_height: getRefFromId(metadata, 'inner_heights', col.column_inner_height_id) || '', 
-          inner_width: getRefFromId(metadata, 'inner_widths', col.column_inner_width_id) || '', inner_depth: getRefFromId(metadata, 'inner_depths', col.column_inner_depth_id) || '', design: getRefFromId(metadata, 'designs', col.column_design_id) || '', finish: getRefFromId(metadata, 'finishes', col.column_finish_id) || '',
-           door: getRefFromId(metadata, 'doors', col.column_door_type_id) || '', two_way_opening: getRefFromId(metadata, '2ways', col.column_two_way_opening_id) as 'C' | 'G' | 'D', knob_direction: getRefFromId(metadata, 'knobs', col.column_knob_direction_id) as 'C' | 'G' | 'D', foam_type: getRefFromId(metadata, 'foams', 
-           col.column_foam_type_id) ?? '', body_count: col.body_count || 1, body_id: col.body_id || null, column_order: col.column_order // garanti: number 
-          })); setColumns(mappedColumns); setCurrentStep('volumes'); }
+        if (apiColumns && Array.isArray(apiColumns)) {
+          const columnsWithOrder = apiColumns.map((col: any) => ({ ...col, column_order: typeof col.column_order === 'number' ? col.column_order : 1 }));
+          setExistingColumns(columnsWithOrder);
+          const mappedColumns: Column[] = columnsWithOrder.map((col: any) => ({ id: crypto.randomUUID(), position: col.column_order, thickness: getRefFromId(metadata, 'thicknesses', col.column_thickness_id) || '', inner_height: getRefFromId(metadata, 'inner_heights', col.column_inner_height_id) || '', inner_width: getRefFromId(metadata, 'inner_widths', col.column_inner_width_id) || '', inner_depth: getRefFromId(metadata, 'inner_depths', col.column_inner_depth_id) || '', design: getRefFromId(metadata, 'designs', col.column_design_id) || '', finish: getRefFromId(metadata, 'finishes', col.column_finish_id) || '', door: getRefFromId(metadata, 'doors', col.column_door_type_id) || '', two_way_opening: getRefFromId(metadata, '2ways', col.column_two_way_opening_id) as 'C' | 'G' | 'D', knob_direction: getRefFromId(metadata, 'knobs', col.column_knob_direction_id) as 'C' | 'G' | 'D', foam_type: getRefFromId(metadata, 'foams', col.column_foam_type_id) ?? '', body_count: col.body_count || 1, body_id: col.body_id || null, column_order: col.column_order }));
+          setColumns(mappedColumns);
+        }
       } catch (err) {
         console.error('Error loading configuration:', err);
       } finally {
@@ -96,7 +135,7 @@ export function ConfigurationEditor() {
     };
     loadExistingConfiguration();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, getConfiguration, getColumns, metadata]);
+  }, [id, getConfiguration, getColumns, getConfigurationSteps, metadata]);
 
   const handleBasicInfoNext = async () => {
     try {
@@ -143,12 +182,57 @@ export function ConfigurationEditor() {
     setColumns([...columns, newColumn]);
   };
 
-  const handleColumnsBack = () => setCurrentStep('basic');
-  const handleColumnsSave = () => setCurrentStep('volumes');
-  const handleVolumesBack = () => setCurrentStep('columns');
-  const handleVolumesSave = () => setCurrentStep('corners');
-  const handleCornersBack = () => setCurrentStep('volumes');
-  const handleCornersSave = () => navigate('/');
+  const handleStepNavigation = async (targetStep: string) => {
+    if (!id) return;
+    try {
+      const stepsData = await getConfigurationSteps(id);
+      const currentBack = stepsData.currentStep;
+      const nextBack = stepsData.nextStep;
+      const targetBack = stepFrontToBack[targetStep];
+      // Autorisé si on va à l'étape courante ou à la prochaine
+      if (targetBack === currentBack || targetBack === nextBack) {
+        setCurrentStep(targetStep as any);
+        setError(null);
+      } else {
+        setError("Navigation non autorisée : l'étape demandée n'est pas accessible selon l'état du back-office.");
+      }
+    } catch (err) {
+      setError("Erreur lors de la vérification de l'étape auprès du serveur.");
+    }
+  };
+
+  const handleContinue = async (current: string, next: string) => {
+    if (!id) return;
+    setError(null);
+
+    // Nouvelle logique : on passe directement à l'étape suivante après l'enregistrement
+    try {
+      const stepsData = await getConfigurationSteps(id);
+      const nextBack = stepsData.nextStep;
+      const nextFront = stepBackToFront[nextBack] || next;
+      setCurrentStep(nextFront as any);
+      setError(null);
+    } catch (err) {
+      setError("Erreur lors de la vérification de l'étape auprès du serveur.");
+    }
+  };
+
+  // Handler générique pour chaque étape
+  const handleStepSaveAndContinue = async (step: string, next: string) => {
+    if (step === 'basic') {
+      await handleBasicInfoNext();
+      await handleContinue('basic', 'columns');
+    } else if (step === 'columns') {
+      await handleSaveColumns();
+      await handleContinue('columns', 'volumes');
+    } else if (step === 'volumes') {
+      // VolumesStep gère déjà l'appel API et appelle onSave après succès
+      await handleContinue('volumes', 'corners');
+    } else if (step === 'corners') {
+      // À compléter selon la logique d'enregistrement des coins/angles
+      await handleContinue('corners', 'summary');
+    }
+  };
 
   type StepStatus = 'current' | 'complete' | 'upcoming';
   const steps: { name: string; description: string; status: StepStatus }[] = [
@@ -213,12 +297,10 @@ export function ConfigurationEditor() {
           </div>
           <ConfigurationSteps 
             steps={steps}
-            onStepClick={(index) => {
+            onStepClick={async (index) => {
               const stepNames = ['basic', 'columns', 'volumes', 'corners'] as const;
               const targetStep = stepNames[index];
-              if (steps[index].status === 'complete' || steps[index].status === 'current') {
-                setCurrentStep(targetStep);
-              }
+              await handleStepNavigation(targetStep);
             }}
           />
 
@@ -231,7 +313,7 @@ export function ConfigurationEditor() {
               <BasicAndDimensionsStep
                 step1Data={step1Data}
                 onStep1Change={setStep1Data}
-                onNext={handleBasicInfoNext}
+                onNext={async () => await handleStepSaveAndContinue('basic', 'columns')}
                 loading={loading}
               />
             </ConfigurationContainer>
@@ -242,7 +324,6 @@ export function ConfigurationEditor() {
               <ColumnsStep
                 columns={columns}
                 configId={id ?? null}
-              //  existingColumns={existingColumns}
                 onColumnsChange={setColumns}
                 columnData={columnData}
                 onColumnDataChange={setColumnData}
@@ -250,8 +331,9 @@ export function ConfigurationEditor() {
                 onAddColumn={handleAddColumn}
                 onDeleteColumn={handleDeleteColumn}
                 onDuplicateColumn={handleDuplicateColumn}
-                onBack={handleColumnsBack}
-                onSave={handleColumnsSave}
+                onBack={() => handleStepNavigation('basic')}
+                onSave={async () => await handleStepSaveAndContinue('columns', 'volumes')}
+                onContinue={async () => await handleStepSaveAndContinue('columns', 'volumes')}
                 loading={loading}
               />
             </ConfigurationContainer>
@@ -261,8 +343,8 @@ export function ConfigurationEditor() {
             <ConfigurationContainer title="Visualisation des volumes" isLast>
               <VolumesStep
                 configId={id ?? null}
-                onBack={handleVolumesBack}
-                onSave={handleVolumesSave}
+                onBack={() => handleStepNavigation('columns')}
+                onSave={async () => await handleStepSaveAndContinue('volumes', 'corners')}
                 isSaving={loading}
                 error={error ?? undefined}
               />
@@ -273,8 +355,8 @@ export function ConfigurationEditor() {
             <ConfigurationContainer title="Angles et Té" isLast>
               <CornersStep
                 configId={id ?? null}
-                onBack={handleCornersBack}
-                onSave={handleCornersSave}
+                onBack={() => handleStepNavigation('volumes')}
+                onSave={async () => await handleStepSaveAndContinue('corners', 'summary')}
                 isSaving={loading}
                 error={error ?? undefined}
               />

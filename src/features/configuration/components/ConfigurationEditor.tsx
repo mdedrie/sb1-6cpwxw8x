@@ -193,7 +193,11 @@ export const ConfigurationEditor: React.FC = () => {
 
       <ConfigurationSteps
         steps={steps}
-        onStepClick={index => setCurrentStep(stepOrder[index])}
+        onStepClick={index => {
+          if (steps[index].status === 'current' || steps[index].status === 'complete') {
+            setCurrentStep(stepOrder[index]);
+          }
+        }}
       />
 
       {error && (
@@ -235,6 +239,14 @@ export const ConfigurationEditor: React.FC = () => {
           onDuplicateColumn={() => {}}
           onBack={() => setCurrentStep('dimensions')}
           onSave={handleColumnsSaveAndRefetch}
+          onContinue={async () => {
+            if (columns.length === 0) {
+              setError("Vous devez ajouter au moins une colonne avant de continuer.");
+              return;
+            }
+            await handleColumnsSaveAndRefetch();
+            setCurrentStep('volumes');
+          }}
           loading={loading}
           error={error || undefined}
         />
